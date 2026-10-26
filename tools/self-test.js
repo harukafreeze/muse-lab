@@ -803,5 +803,34 @@ ok(inBar(buf4, 0) === 9 && inBar(buf4, 1) === 9 && inBar(buf4, 2) === 10 && inBa
 
 A.stop();
 
+/* ============================================================
+ * 6. 练习页的出题
+ * ============================================================ */
+
+console.log('\n[6] 自由练习的出题');
+
+require('../js/practice.js');
+const PRACTICE = globalThis.PRACTICE;
+
+['degree', 'interval', 'chord'].forEach(function (mode) {
+  let bad = 0;
+  const answers = [];
+  for (let i = 0; i < 300; i++) {
+    const q = PRACTICE._make(mode, 1 + (i % 3));
+    if (q.options.indexOf(q.answer) < 0) bad++;
+    if (q.options.filter(function (o, j, a) { return a.indexOf(o) === j; }).length !== q.options.length) bad++;
+    if (!q.options.length) bad++;
+    answers.push(q.answer);
+  }
+  const uniq = answers.filter(function (v, i, a) { return a.indexOf(v) === i; });
+  ok(bad === 0, mode + '：300 道题，答案都在选项里且不重复', bad);
+  ok(uniq.length >= 2, mode + '：答案有变化（' + uniq.length + ' 种）', uniq.length);
+});
+
+// 级数题必须覆盖七级
+const degreeSeen = {};
+for (let i = 0; i < 400; i++) degreeSeen[PRACTICE._make('degree', 1).answer] = 1;
+ok(Object.keys(degreeSeen).length === 7, '级数题七级都出得到', Object.keys(degreeSeen).sort());
+
 console.log('\n结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail === 0 ? 0 : 1);

@@ -579,5 +579,69 @@
     return h;
   };
 
+  /* ============================================================
+   * 键盘音：单次触发，不走走带
+   *
+   * 练习页要的是「按下去就响」，不是四小节循环。
+   * 音色比铺底干净——磨耳朵的时候，泛音少一点更容易听准。
+   * ============================================================ */
+
+  function keyVoice(t0, dur, midi, dest, level) {
+    const f = MT.freq(midi);
+
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(Math.min(7000, f * 9), t0);
+    lp.frequency.setTargetAtTime(Math.min(4200, f * 5), t0 + 0.15, 0.5);
+
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(level, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(level * 0.42, t0 + 0.24);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    const o1 = ctx.createOscillator();
+    o1.type = 'triangle';
+    o1.frequency.value = f;
+
+    const o2 = ctx.createOscillator();
+    o2.type = 'sine';
+    o2.frequency.value = f * 2;
+    const g2 = ctx.createGain();
+    g2.gain.value = 0.22;
+
+    const o3 = ctx.createOscillator();
+    o3.type = 'sawtooth';
+    o3.frequency.value = f;
+    const g3 = ctx.createGain();
+    g3.gain.value = 0.1;
+
+    o1.connect(g);
+    o2.connect(g2); g2.connect(g);
+    o3.connect(g3); g3.connect(g);
+    g.connect(lp);
+    lp.connect(dest);
+
+    const end = t0 + dur + 0.05;
+    [o1, o2, o3].forEach(function (o) { o.start(t0); o.stop(end); });
+  }
+
+  /** 按一下：单个音。delay 是「从现在起几秒后响」 */
+  A.blip = function (midi, delay, dur, level) {
+    ac();
+    const t0 = ctx.currentTime + (delay || 0) + 0.02;
+    keyVoice(t0, dur || 1.1, midi, master, level || 0.2);
+  };
+
+  /** 按一下：一组音（和弦） */
+  A.chordBlip = function (notes, delay, dur, level) {
+    ac();
+    const t0 = ctx.currentTime + (delay || 0) + 0.02;
+    const d = dur || 1.1;
+    notes.forEach(function (m, i) {
+      keyVoice(t0 + i * 0.012, d, m, master, (level || 0.16) / Math.max(1, notes.length * 0.55));
+    });
+  };
+
   root.MA = A;
 })(typeof window !== 'undefined' ? window : globalThis);

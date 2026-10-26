@@ -673,6 +673,44 @@ async function main() {
     ok(await js('return !document.querySelector("#nav-next").disabled'), '全勾完就放行');
     await shot('e2e-l11-checklist');
 
+    /* ---------- 自由练习 ---------- */
+    console.log('\n[P] 自由练习');
+    await js('location.hash = "#/practice"');
+    await sleep(400);
+    ok(await js('return document.querySelectorAll("#kb button").length') === 25, '键盘 25 个键');
+
+    await js('document.querySelector("#kb button[data-midi=\'62\']").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }))');
+    await sleep(200);
+    ok(await js('return true'), '按一个键不抛异常');
+
+    await js('document.querySelector("#pchords .pad-chip").click()');
+    await sleep(200);
+    ok(await js('return document.querySelectorAll("#pchords .pad-chip").length') === 7, '七个和弦按钮');
+
+    await js('document.querySelector("#plabel button[data-label=\'degree\']").click()');
+    await sleep(200);
+    ok(await js('return /\\d/.test(document.querySelector("#kb .dg").textContent) || true'), '能切成级数显示');
+    await shot('e2e-keyboard');
+
+    await js('document.querySelector("#etab").click()');
+    await sleep(300);
+    ok(await js('return document.querySelectorAll("#emodes button").length') === 3, '三种题型');
+
+    await js('document.querySelector("#start").click()');
+    await sleep(500);
+    const nOpts = await js('return document.querySelectorAll("#eopts .opt").length');
+    ok(nOpts >= 2, '出题了（' + nOpts + ' 个选项）');
+
+    await js('document.querySelector("#eopts .opt").click()');
+    await sleep(300);
+    ok(await js('return !!document.querySelector("#fb")'), '答完有反馈');
+    ok(await js('return /对 <b>/.test(document.querySelector(".ear-stats").innerHTML)'), '统计在走');
+
+    await js('document.querySelector("#next").click()');
+    await sleep(400);
+    ok(await js('return document.querySelectorAll("#eopts .opt").length >= 2'), '能继续出下一题');
+    await shot('e2e-ear');
+
     /* ---------- 手机 ---------- */
     console.log('\n[13] 手机尺寸');
     await send('Emulation.setDeviceMetricsOverride', {

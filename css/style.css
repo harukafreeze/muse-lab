@@ -277,7 +277,7 @@ a.card:active { transform: none; }
 
 .seg button.on { background: var(--accent-dim); color: var(--accent); }
 
-.seg.tabs { margin-bottom: 12px; }
+.seg.tabs { display: flex; width: fit-content; margin-bottom: 14px; }
 
 /* 调性这种一排放不下的，允许换行 */
 .seg.wrap { display: flex; flex-wrap: wrap; width: 100%; max-width: 100%; }
@@ -294,6 +294,8 @@ a.card:active { transform: none; }
 
 .options { display: grid; gap: 10px; max-width: 440px; }
 .options.grid4 { grid-template-columns: repeat(4, 1fr); max-width: none; }
+.options.deg7 { grid-template-columns: repeat(7, 1fr); max-width: none; }
+.options.deg7 .opt { padding: 14px 0; text-align: center; font-size: 16px; }
 
 .opt {
   appearance: none;
@@ -546,6 +548,94 @@ a.card.tool:hover { border-color: #4a6a58; }
   font-size: 13.5px;
   line-height: 1.7;
 }
+
+/* ---------------- 键盘 ---------------- */
+
+.kb-wrap { padding: 14px 14px 16px; }
+
+.kb {
+  position: relative;
+  display: flex;
+  height: 200px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.kb .wkey {
+  position: relative;
+  flex: 1 1 0;
+  margin: 0 1px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 3px;
+  padding: 0 0 9px;
+  border: 1px solid #0b0f13;
+  border-radius: 0 0 6px 6px;
+  background: linear-gradient(180deg, #e9eef3, #c6d0d9);
+  color: #4a5a68;
+  font: inherit;
+  cursor: pointer;
+  transition: background .08s ease;
+}
+
+.kb .wkey .nm { font-size: 10.5px; font-weight: 600; }
+.kb .wkey .dg { font-size: 12px; font-weight: 700; color: #2f7d5b; }
+
+.kb .bkey {
+  position: absolute;
+  top: 0;
+  height: 62%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0 0 7px;
+  border: 1px solid #05080b;
+  border-radius: 0 0 5px 5px;
+  background: linear-gradient(180deg, #2b3642, #10161c);
+  color: #9fb0bf;
+  font: inherit;
+  cursor: pointer;
+  transition: background .08s ease;
+}
+
+.kb .bkey .nm { font-size: 9px; }
+.kb .bkey .dg { font-size: 10px; font-weight: 700; color: #5fd39a; }
+
+.kb .wkey.on { background: linear-gradient(180deg, #b9f0d4, #7fd9ab); }
+.kb .bkey.on { background: linear-gradient(180deg, #2f7d5b, #17452f); }
+
+/* ---------------- 磨耳朵 ---------------- */
+
+.ear-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 12px 0 20px;
+  color: #7d8b99;
+  font-size: 12.5px;
+}
+
+.ear-stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+.ear-stats .lv { margin-left: auto; color: var(--accent); }
+
+.ear-start {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.ear-start p { margin: 0; color: var(--muted); font-size: 14px; }
+
+.ear-play { margin: 6px 0 16px; }
 
 /* ---------------- 清单 ---------------- */
 

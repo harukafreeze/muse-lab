@@ -126,6 +126,7 @@
   }
 
   function teardown() {
+    if (root.PRACTICE) root.PRACTICE.leave();
     if (S.handle) {
       try { S.handle.stop(); } catch (e) { /* noop */ }
       S.handle = null;
@@ -205,6 +206,15 @@
             '<h3>拆一首歌</h3>' +
             '<p>把你喜欢那首歌里的 4 个和弦打进来</p>' +
             '<p class="card-goal">我告诉你这是 1-5-6m-4，还是别的什么</p>' +
+          '</div>' +
+          '<div class="card-state">工具</div>' +
+        '</a>' +
+        '<a class="card tool" href="#/practice">' +
+          '<div class="card-no">⌨</div>' +
+          '<div class="card-main">' +
+            '<h3>自由练习</h3>' +
+            '<p>能弹的键盘 + 磨耳朵的随机题</p>' +
+            '<p class="card-goal">不用按顺序走，想练哪块练哪块</p>' +
           '</div>' +
           '<div class="card-state">工具</div>' +
         '</a>' +
@@ -1183,6 +1193,13 @@
     const h = String(root.location.hash || '').replace(/^#\/?/, '');
     if (h === 'analyze') {
       renderAnalyze();
+      pulse();
+      return;
+    }
+    if (h === 'practice') {
+      const t = $('.topbar .tag');
+      if (t) t.textContent = '自由练习';
+      root.PRACTICE.render($('#app'));
       pulse();
       return;
     }
