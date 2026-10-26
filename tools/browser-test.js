@@ -730,6 +730,7 @@ async function main() {
     await overflowOn('#/analyze', '拆歌页');
     await shot('e2e-mobile-analyze');
     await overflowOn('#/l13/3', '节奏课');
+    await overflowOn('#/practice', '练习页');
 
     /* ---------- 控制台 ---------- */
     console.log('\n[14] 控制台');
