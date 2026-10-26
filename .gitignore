@@ -1,0 +1,6 @@
+# 测试跑出来的截图，不入库
+tools/shots/
+
+# 系统垃圾
+.DS_Store
+Thumbs.db
