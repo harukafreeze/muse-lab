@@ -268,6 +268,9 @@ git commit -m "……"
 git push
 ```
 
+> 刚推完的那一两分钟，CDN 可能还在发旧文件。想立刻验证就带个缓存参数：
+> `$env:MUSE_BASE = "https://harukafreeze.github.io/muse-lab/?v=1"`
+
 `.nojekyll` 在根目录——没有它，Jekyll 会吞掉一些以下划线开头的路径。
 
 <details>
