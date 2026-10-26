@@ -17,7 +17,9 @@
 
 ![首页](docs/preview/home.png)
 
-**▶ 打开方式：双击 `index.html`**（无构建、无后端、断网可用。也可以 `python -m http.server 8080` 再开 `127.0.0.1:8080`）
+**▶ 在线版：<https://harukafreeze.github.io/muse-lab/>**（手机也能开，戴着耳机练）
+
+**▶ 本地打开：双击 `index.html`**（无构建、无后端、断网可用。也可以 `python -m http.server 8080` 再开 `127.0.0.1:8080`）
 
 ---
 
