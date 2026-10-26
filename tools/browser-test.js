@@ -21,7 +21,8 @@ const CHROME = [
 ].filter(fs.existsSync)[0];
 
 const PORT = 9333;
-const PAGE = 'file:///D:/personal/muse/web/index.html';
+// 默认测本地的 file://；设了 MUSE_BASE 就测那个地址（比如线上站）
+const PAGE = process.env.MUSE_BASE || 'file:///D:/personal/muse/web/index.html';
 const SHOTS = path.join(__dirname, 'shots');
 
 let pass = 0, fail = 0;

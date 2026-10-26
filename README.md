@@ -212,7 +212,14 @@ web/
 
 ```powershell
 node tools/self-test.js      # 约 1 秒
-node tools/browser-test.js   # 需要本机 Chrome，约 15 秒
+node tools/browser-test.js   # 需要本机 Chrome，约 20 秒
+```
+
+端到端默认测本地的 `file://`。想直接测线上站，给它一个地址：
+
+```powershell
+$env:MUSE_BASE = "https://harukafreeze.github.io/muse-lab/"
+node tools/browser-test.js
 ```
 
 ---
