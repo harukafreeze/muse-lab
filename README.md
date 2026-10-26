@@ -219,7 +219,22 @@ node tools/browser-test.js   # 需要本机 Chrome，约 15 秒
 
 ## 发布
 
-这个目录就是一个完整的静态站，没有构建步骤。推到 GitHub 打开 Pages 就能用：
+**已经在线：<https://harukafreeze.github.io/muse-lab/>**
+
+这个目录就是一个完整的静态站，没有构建步骤。仓库是 [harukafreeze/muse-lab](https://github.com/harukafreeze/muse-lab)，Pages 走 `main` / `/ (root)`。
+
+以后改完只要推一次，Pages 自己重建，一分钟左右生效：
+
+```powershell
+git add -A
+git commit -m "……"
+git push
+```
+
+`.nojekyll` 在根目录——没有它，Jekyll 会吞掉一些以下划线开头的路径。
+
+<details>
+<summary>第一次建站用的命令（留档）</summary>
 
 ```powershell
 cd web
@@ -230,9 +245,8 @@ git remote add origin https://github.com/harukafreeze/muse-lab.git
 git push -u origin main
 ```
 
-然后在仓库 **Settings → Pages** 里选 `main` / `/ (root)`，地址就是 `https://harukafreeze.github.io/muse-lab/`。
-
-`.nojekyll` 已经放好了——没有它，Jekyll 会吞掉一些以下划线开头的路径。
+然后在仓库 **Settings → Pages** 里选 `main` / `/ (root)`。
+</details>
 
 ---
 
