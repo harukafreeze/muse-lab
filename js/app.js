@@ -110,6 +110,18 @@
       if (b === step.degree) return 'b';
       return null;
     }
+    if (step.abRule === 'endsOnTonic') {
+      const a = MT.endsOnTonic(step.chordsA, keyPc);
+      const b = MT.endsOnTonic(step.chordsB, keyPc);
+      if (a === b) return null;
+      return a ? 'a' : 'b';
+    }
+    if (step.abRule === 'hasDrums') {
+      const a = ML.hasDrums(step.drumsA);
+      const b = ML.hasDrums(step.drumsB);
+      if (a === b) return null;
+      return a ? 'a' : 'b';
+    }
     return MT.endsOnTonic(step.chordsA, keyPc) ? 'b' : 'a';
   }
 
@@ -617,6 +629,8 @@
           chordsA: step.chordsA,
           chordsB: step.chordsB,
           melody: step.melody || [],
+          drumsA: step.drumsA || null,
+          drumsB: step.drumsB || null,
           bass: true
         });
       } catch (e) {
@@ -994,6 +1008,8 @@
       truth = bs.length === 1 ? bs[0] : -1;
     } else if (isAlways) {
       truth = ML.rowAlwaysOn(step.drums)[0] || '';
+    } else if (step.quizType === 'bassDir') {
+      truth = ML.bassDirection(step.chords);
     } else {
       truth = MT.barsWithDegree(step.chords, S.lesson.keyPc, 5).length;
     }
@@ -1040,7 +1056,7 @@
       if (!b) return;
       const fb = $('#fb');
       $$('button.opt').forEach(function (x) { x.classList.remove('ok', 'no'); });
-      if (Number(b.dataset.n) === truth) {
+      if (b.dataset.n === String(truth)) {
         b.classList.add('ok');
         feedback(fb, step.why || ('对，' + truth + ' 次。'), 'ok');
         S.gated = true;

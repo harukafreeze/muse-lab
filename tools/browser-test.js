@@ -131,10 +131,37 @@ async function main() {
 
     /* ---------- 目录 ---------- */
     console.log('\n[1] 目录');
-    ok(await js('return document.querySelectorAll(".card:not(.tool)").length') === 8, '八张课程卡片');
-    ok(await js('return document.querySelectorAll("a.card:not(.tool)").length') === 8, '八课都是链接');
+    ok(await js('return document.querySelectorAll(".card:not(.tool)").length') === 11, '十一张课程卡片（1–13 课，去掉 6、9）');
+    ok(await js('return document.querySelectorAll("a.card:not(.tool)").length') === 11, '十一课都是链接');
+    ok(await js('return /^01$/.test(document.querySelector(".card-no").textContent)'), '第一张卡是第 1 课');
     ok(await js('return !!document.querySelector("a.card.tool")'), '首页有「拆一首歌」入口');
     await shot('e2e-home');
+
+    /* ---------- 第 1–3 课：只用耳朵 ---------- */
+    console.log('\n[1-3] 前三课');
+    await js('location.hash = "#/l1/2"');
+    await sleep(350);
+    await js('document.querySelector("#play").click()');
+    await sleep(700);
+    ok(await js('return /停止/.test(document.querySelector("#play").textContent)'), '第 1 课能放');
+    await js('document.querySelector("#play").click()');
+    await sleep(150);
+    await js('document.querySelector(\'#opts button[data-key="a"]\').click()');
+    await sleep(200);
+    ok(await js('return document.querySelector("#fb").classList.contains("ok")'), '第 1 课：选「结尾一」判对');
+
+    await js('location.hash = "#/l2/2"');
+    await sleep(350);
+    await js('document.querySelector(\'#opts button[data-key="b"]\').click()');
+    await sleep(200);
+    ok(await js('return document.querySelector("#fb").classList.contains("ok")'), '第 2 课：有鼓那段是副歌');
+
+    await js('location.hash = "#/l3/3"');
+    await sleep(350);
+    await js('document.querySelector(\'#opts button[data-n="往上"]\').click()');
+    await sleep(200);
+    ok(await js('return document.querySelector("#fb").classList.contains("ok")'), '第 3 课：低音在往上判对');
+    await shot('e2e-l3-bass');
 
     /* ---------- 第 4 课 · A/B ---------- */
     console.log('\n[2] 第 4 课 · A/B 双版本');

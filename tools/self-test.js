@@ -99,7 +99,12 @@ L.LESSONS.forEach(function (lesson) {
 
     if (step.kind === 'ab') {
       ok(step.chordsA.length === step.chordsB.length, where + ' A/B 两版长度一致');
-      ok(JSON.stringify(step.chordsA) !== JSON.stringify(step.chordsB), where + ' A/B 两版确实不同');
+      if (step.abRule === 'hasDrums') {
+        ok(JSON.stringify(step.chordsA) === JSON.stringify(step.chordsB),
+          where + ' 和弦相同，差别只在鼓');
+      } else {
+        ok(JSON.stringify(step.chordsA) !== JSON.stringify(step.chordsB), where + ' A/B 两版确实不同');
+      }
 
       let answer;
       if (step.abRule === 'endsOnDegree') {
@@ -108,6 +113,16 @@ L.LESSONS.forEach(function (lesson) {
         ok((a === step.degree) !== (b === step.degree),
           where + ' 恰好一版落在第 ' + step.degree + ' 级（题目可解）', { a, b });
         answer = a === step.degree ? 'a' : 'b';
+      } else if (step.abRule === 'endsOnTonic') {
+        const a = T.endsOnTonic(step.chordsA, keyPc);
+        const b = T.endsOnTonic(step.chordsB, keyPc);
+        ok(a !== b, where + ' 恰好一版落回主和弦（题目可解）', { a, b });
+        answer = a ? 'a' : 'b';
+      } else if (step.abRule === 'hasDrums') {
+        const a = L.hasDrums(step.drumsA);
+        const b = L.hasDrums(step.drumsB);
+        ok(a !== b, where + ' 恰好一版有鼓（题目可解）', { a, b });
+        answer = a ? 'a' : 'b';
       } else {
         const ea = T.endsOnTonic(step.chordsA, keyPc);
         const eb = T.endsOnTonic(step.chordsB, keyPc);
@@ -142,6 +157,10 @@ L.LESSONS.forEach(function (lesson) {
         const on = L.rowAlwaysOn(step.drums);
         ok(on.length === 1, where + ' 恰好一排整小节都在响（否则这题没答案）', on);
         truth = on[0] || '';
+        label = '「' + truth + '」';
+      } else if (step.quizType === 'bassDir') {
+        truth = L.bassDirection(step.chords);
+        ok(truth !== '基本不动', where + ' 低音走向明确（否则这题没答案）', truth);
         label = '「' + truth + '」';
       } else {
         truth = T.barsWithDegree(step.chords, keyPc, 5).length;

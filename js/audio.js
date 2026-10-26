@@ -374,9 +374,10 @@
       level: opts.level || 0.1,
       melLevel: opts.melLevel || 0.14,
       drumLevel: opts.drumLevel || 0.5,
-      drums: normalizeDrums(opts.drums),
+      drumsA: normalizeDrums(opts.drums || opts.drumsA),
+      drumsB: normalizeDrums(opts.drumsB),
       barDur: (60 / (opts.bpm || 96)) * 4,
-      out: null, busA: null, busB: null, busMel: null, busDrum: null,
+      out: null, busA: null, busB: null, busMel: null, busDrum: null, busDrumB: null,
       nextBar: 0, nextTime: 0, startTime: 0,
       timer: null, playing: false, version: 'a'
     };
@@ -405,15 +406,18 @@
       voice(t0 + n.beat * beat, n.dur * beat, n.midi, s.busMel, s.melLevel);
     });
 
-    if (s.drums) {
-      const p = drumPatternFor(s.drums, barIdx);
-      const eighth = s.barDur / 8;
-      for (let i = 0; i < 8; i++) {
-        const t = t0 + i * eighth;
-        if (p.hats[i]) drumHat(t, s.busDrum, s.drumLevel * 0.36);
-        if (p.snare[i]) drumSnare(t, s.busDrum, s.drumLevel * 0.8);
-        if (p.kick[i]) drumKick(t, s.busDrum, s.drumLevel);
-      }
+    if (s.drumsA) scheduleDrums(s, s.drumsA, barIdx, t0, s.busDrum);
+    if (s.drumsB) scheduleDrums(s, s.drumsB, barIdx, t0, s.busDrumB);
+  }
+
+  function scheduleDrums(s, drums, barIdx, t0, dest) {
+    const p = drumPatternFor(drums, barIdx);
+    const eighth = s.barDur / 8;
+    for (let i = 0; i < 8; i++) {
+      const t = t0 + i * eighth;
+      if (p.hats[i]) drumHat(t, dest, s.drumLevel * 0.36);
+      if (p.snare[i]) drumSnare(t, dest, s.drumLevel * 0.8);
+      if (p.kick[i]) drumKick(t, dest, s.drumLevel);
     }
   }
 
@@ -480,6 +484,12 @@
     s.busDrum.connect(drumSend);
     drumSend.connect(reverbIn);
 
+    // B 版的鼓：跟 A/B 切换一起走，第 2 课「薄 vs 厚」靠它
+    s.busDrumB = ctx.createGain();
+    s.busDrumB._role = 'busDrumB';
+    s.busDrumB.gain.value = 0;
+    s.busDrumB.connect(master);
+
     s.playing = true;
     s.startTime = ctx.currentTime + 0.08;
     s.nextTime = s.startTime;
@@ -500,7 +510,7 @@
       stop: function () { if (current === s) A.stop(); },
       setVersion: A.setVersion,
       setChords: function (arr) { s.chordsA = arr.slice(); },
-      setDrums: function (d) { s.drums = normalizeDrums(d); },
+      setDrums: function (d) { s.drumsA = normalizeDrums(d); },
       position: A.position,
       version: function () { return s.version; }
     };
@@ -513,7 +523,7 @@
     s.playing = false;
     clearInterval(s.timer);
     const t = ctx.currentTime;
-    [s.out, s.busA, s.busB, s.busMel, s.busDrum].forEach(function (b) {
+    [s.out, s.busA, s.busB, s.busMel, s.busDrum, s.busDrumB].forEach(function (b) {
       if (!b) return;
       try {
         b.gain.cancelScheduledValues(t);
@@ -521,7 +531,7 @@
       } catch (e) { /* 已被断开 */ }
     });
     setTimeout(function () {
-      [s.out, s.busA, s.busB, s.busMel, s.busDrum].forEach(function (b) {
+      [s.out, s.busA, s.busB, s.busMel, s.busDrum, s.busDrumB].forEach(function (b) {
         try { b.disconnect(); } catch (e) { /* noop */ }
       });
     }, 700);
@@ -532,11 +542,16 @@
   /** 在当前小节之后的第一个小节线上切换 A/B */
   A.setVersion = function (v) {
     const s = current;
-    if (!s || !s.chordsB) return false;
+    if (!s) return false;
     const tb = boundaryAfter(s, ctx.currentTime);
     s.version = v;
     s.busA.gain.setTargetAtTime(v === 'a' ? 1 : 0, tb, 0.008);
     s.busB.gain.setTargetAtTime(v === 'b' ? 1 : 0, tb, 0.008);
+    // 鼓也跟着换：第 2 课就是靠这个听「薄」和「厚」
+    if (s.drumsB) {
+      s.busDrum.gain.setTargetAtTime(v === 'a' ? 1 : 0, tb, 0.008);
+      s.busDrumB.gain.setTargetAtTime(v === 'b' ? 1 : 0, tb, 0.008);
+    }
     return true;
   };
 
