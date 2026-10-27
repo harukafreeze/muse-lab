@@ -650,6 +650,103 @@ a.card.tool:hover { border-color: #4a6a58; }
 
 .ear-play { margin: 6px 0 16px; }
 
+/* ---------------- 哼唱 ---------------- */
+
+.hum-cv { display: block; width: 100%; height: 170px; }
+
+.hum-result { margin-top: 18px; }
+
+.hum-count { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+
+.hum-notes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.hum-note {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 10px;
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: 13px;
+}
+
+.hum-note b { color: var(--accent); font-weight: 600; }
+.hum-note i { color: #6f7d8b; font-style: normal; font-size: 11px; }
+
+/* ---------------- 听写 ---------------- */
+
+.drop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 18px;
+  border: 1px dashed var(--line2);
+  border-radius: 12px;
+  margin-bottom: 18px;
+}
+
+.listen-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 24px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.listen-opts label { display: flex; align-items: center; gap: 8px; }
+
+.listen-opts input {
+  width: 74px;
+  padding: 7px 10px;
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.readout {
+  padding: 4px 16px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.readout-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, .05);
+}
+
+.readout-row:last-child { border-bottom: 0; }
+.readout-label { width: 44px; flex: none; color: #7d8b99; font-size: 12px; }
+.readout-value { flex: 1; color: #cfd8e1; font-size: 14px; }
+.readout-value b { color: var(--text); font-size: 19px; font-variant-numeric: tabular-nums; margin-right: 4px; }
+
+.strip-wrap { margin: 4px 0 18px; }
+
+.strip {
+  display: block;
+  width: 100%;
+  height: 190px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
 /* ---------------- 清单 ---------------- */
 
 .checks {

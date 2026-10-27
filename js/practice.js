@@ -42,6 +42,7 @@
 
   P.leave = function () {
     if (S.cleanup) { S.cleanup(); S.cleanup = null; }
+    humStop();
   };
 
   function keyRow(selected) {
@@ -177,6 +178,7 @@
     };
 
     $('#etab').onclick = function () { P.renderEar(app); };
+    $('#htab').onclick = function () { P.renderHum(app); };
 
     $('#kb').onpointerdown = function (e) {
       const b = e.target.closest('button[data-midi]');
@@ -480,6 +482,8 @@
       P.renderEar(app);
     };
 
+    $('#htab').onclick = function () { P.renderHum(app); };
+
     $('#emodes').onclick = function (e) {
       const b = e.target.closest('button[data-mode]');
       if (!b) return;
@@ -569,6 +573,322 @@
   };
 
   /* ============================================================
+   * 哼唱 → 音符
+   * ============================================================ */
+
+  const HUM_DEC = 4;          // 降采样倍数：48k → 12k，够用且快
+  const HUM_MIN_DUR = 0.09;   // 短于这个的音当成抖动扔掉
+
+  /** YIN：累积均值归一化差分，取第一个低于阈值的谷 */
+  function detectPitch(buf, sr) {
+    const n = buf.length;
+    const minLag = Math.max(2, Math.floor(sr / 1000));
+    const maxLag = Math.min(n - 2, Math.floor(sr / 60));
+    if (maxLag <= minLag + 2) return 0;
+
+    const d = new Float32Array(maxLag + 2);
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let sum = 0;
+      for (let i = 0; i + lag < n; i++) {
+        const x = buf[i] - buf[i + lag];
+        sum += x * x;
+      }
+      d[lag] = sum;
+    }
+
+    let running = 0;
+    const dp = new Float32Array(maxLag + 2);
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      running += d[lag];
+      dp[lag] = running ? d[lag] * (lag - minLag + 1) / running : 1;
+    }
+
+    for (let lag = minLag + 1; lag < maxLag; lag++) {
+      if (dp[lag] < 0.16 && dp[lag] <= dp[lag - 1] && dp[lag] <= dp[lag + 1]) {
+        const y0 = dp[lag - 1], y1 = dp[lag], y2 = dp[lag + 1];
+        const den = y0 - 2 * y1 + y2;
+        const shift = den ? 0.5 * (y0 - y2) / den : 0;
+        const lagF = lag + shift;
+        return lagF > 0 ? sr / lagF : 0;
+      }
+    }
+    return 0;
+  }
+
+  function humStop() {
+    const H = S.hum;
+    if (!H) return;
+    if (H.recording && H.stopHook) H.stopHook();
+    H.recording = false;
+    if (H.proc) { try { H.proc.disconnect(); } catch (e) { /* noop */ } H.proc = null; }
+    if (H.stream) {
+      H.stream.getTracks().forEach(function (t) { t.stop(); });
+      H.stream = null;
+    }
+    if (H.actx) { try { H.actx.close(); } catch (e) { /* noop */ } H.actx = null; }
+    if (H.raf) { root.cancelAnimationFrame(H.raf); H.raf = null; }
+  }
+
+  function drawHum(canvas, H) {
+    const ctx = canvas.getContext('2d');
+    const dpr = root.devicePixelRatio || 1;
+    const w = canvas.clientWidth || 640;
+    const h = canvas.clientHeight || 160;
+    if (canvas.width !== Math.round(w * dpr)) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#0e1216';
+    ctx.fillRect(0, 0, w, h);
+
+    const lo = 45, hi = 79;
+    const rowH = h / (hi - lo + 1);
+    const yOf = function (m) { return (hi - m) * rowH; };
+
+    // 八度线
+    for (let m = lo; m <= hi; m++) {
+      if (m % 12 === 0) {
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.fillRect(0, yOf(m), w, rowH);
+      }
+    }
+
+    const span = 8;                       // 显示最近 8 秒
+    const now = H.now || 0;
+    const t0 = Math.max(0, now - span);
+
+    // 已确定的音
+    H.notes.forEach(function (n) {
+      if (n.start + n.dur < t0) return;
+      const x0 = ((n.start - t0) / span) * w;
+      const x1 = ((n.start + n.dur - t0) / span) * w;
+      ctx.fillStyle = 'rgba(95,211,154,0.85)';
+      ctx.fillRect(x0, yOf(n.midi) + 1, Math.max(2, x1 - x0 - 1), Math.max(3, rowH - 2));
+    });
+
+    // 正在唱的那条线
+    ctx.strokeStyle = '#78c8ff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let started = false;
+    H.trace.forEach(function (p) {
+      if (p.t < t0) return;
+      const x = ((p.t - t0) / span) * w;
+      const y = yOf(p.midi) + rowH / 2;
+      if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  function humExport(H) {
+    const notes = H.notes.filter(function (n) { return n.dur >= HUM_MIN_DUR; });
+    if (!notes.length) return null;
+    const TICKS_PER_SEC = 480 * 96 / 60;
+    const last = notes[notes.length - 1];
+    const bars = Math.max(1, Math.ceil((last.start + last.dur) * 96 / 60 / 4));
+    const MM = root.MM;
+    return MM.encode({
+      name: 'hum',
+      bpm: 96,
+      bars: bars,
+      keySharps: 0,
+      keyMinor: false,
+      tracks: [{
+        name: 'Vocal',
+        channel: 2,
+        program: 0,
+        notes: notes.map(function (n) {
+          return {
+            tick: Math.round(n.start * TICKS_PER_SEC),
+            dur: Math.max(30, Math.round(n.dur * TICKS_PER_SEC)),
+            midi: n.midi,
+            vel: 96
+          };
+        })
+      }]
+    });
+  }
+
+  P.renderHum = function (app) {
+    if (!S.hum) {
+      S.hum = { notes: [], trace: [], recording: false, stream: null, actx: null, proc: null, t0: 0, now: 0, raf: null };
+    }
+    const H = S.hum;
+
+    app.innerHTML =
+      '<section class="practice">' +
+        '<div class="lesson-top">' +
+          '<div class="crumbs"><a href="#/">目录</a><span class="sep">/</span><span>自由练习</span></div>' +
+        '</div>' +
+        '<div class="lesson-title">' +
+          '<h1>哼唱</h1>' +
+          '<span class="sub">把脑子里的调子落成音符</span>' +
+        '</div>' +
+        tabs('hum') +
+        '<p class="instr">对着麦克风哼一句。它会把音高一个个抓下来，画在下面。</p>' +
+        '<div class="roll-wrap kb-wrap"><canvas id="humcv" class="hum-cv"></canvas></div>' +
+        '<div class="demo">' +
+          '<button class="btn primary" id="humgo">开始</button>' +
+          '<button class="btn ghost" id="humclear">清空</button>' +
+          '<span class="caption" id="humtip">需要麦克风权限，音频不上传</span>' +
+        '</div>' +
+        '<div id="humout"></div>' +
+        '<p class="hint">' +
+          '哼的时候尽量用「嗯」或「啊」，一个音拖住半秒以上更容易抓准。' +
+          '导出的 .mid 只有一条 Vocal 轨，拖进 Studio One 就是一条能改的旋律。' +
+        '</p>' +
+      '</section>';
+
+    const canvas = $('#humcv');
+    drawHum(canvas, H);
+    renderHumOut();
+
+    $('#humgo').onclick = function () {
+      if (H.recording) { humStop(); renderHumOut(); return; }
+      startHum();
+    };
+
+    $('#humclear').onclick = function () {
+      humStop();
+      H.notes = []; H.trace = []; H.now = 0;
+      $('#humgo').textContent = '开始';
+      drawHum(canvas, H);
+      renderHumOut();
+    };
+
+    $('#pkeys').onclick = function () { humStop(); P.renderKeys(app); };
+    $('#etab').onclick = function () { humStop(); P.renderEar(app); };
+    $('#htab').onclick = function () { /* 已经在这一页 */ };
+
+    function renderHumOut() {
+      const out = $('#humout');
+      const notes = H.notes.filter(function (n) { return n.dur >= HUM_MIN_DUR; });
+      const go = $('#humgo');
+      if (go) go.textContent = H.recording ? '停止' : '开始';
+
+      if (!notes.length) {
+        out.innerHTML = '<p class="hint">还没有录到音。按「开始」，哼一句，再按「停止」。</p>';
+        return;
+      }
+
+      const list = notes.map(function (n, i) {
+        return '<span class="hum-note"><b>' + MT.midiName(n.midi) + '</b>' +
+          '<i>' + n.dur.toFixed(2) + 's</i></span>';
+      }).join('');
+
+      out.innerHTML =
+        '<div class="hum-result">' +
+          '<div class="hum-count">抓到 ' + notes.length + ' 个音</div>' +
+          '<div class="hum-notes">' + list + '</div>' +
+          '<div class="demo"><button class="btn primary" id="humexport">导出 .mid</button>' +
+          '<span class="caption">96 BPM，一条 Vocal 轨</span></div>' +
+        '</div>';
+
+      const btn = $('#humexport');
+      if (btn) {
+        btn.onclick = function () {
+          const bytes = humExport(H);
+          if (!bytes) return;
+          root.MM.download(bytes, 'hum.mid');
+        };
+      }
+    }
+
+    function startHum() {
+      const MD = root.navigator && root.navigator.mediaDevices;
+      if (!MD || !MD.getUserMedia) {
+        $('#humtip').textContent = '这个浏览器拿不到麦克风';
+        return;
+      }
+
+      MD.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } })
+        .then(function (stream) {
+          const AC = root.AudioContext || root.webkitAudioContext;
+          const actx = new AC();
+          H.actx = actx;
+          H.stream = stream;
+          H.recording = true;
+          H.notes = []; H.trace = []; H.t0 = actx.currentTime; H.now = 0;
+
+          const src = actx.createMediaStreamSource(stream);
+          const proc = actx.createScriptProcessor(2048, 1, 1);
+          H.proc = proc;
+
+          const mute = actx.createGain();
+          mute.gain.value = 0;                 // 不把麦克风放出来，免得啸叫
+          src.connect(proc);
+          proc.connect(mute);
+          mute.connect(actx.destination);
+
+          let cur = null;
+
+          proc.onaudioprocess = function (e) {
+            if (!H.recording) return;
+            const input = e.inputBuffer.getChannelData(0);
+            const sr = actx.sampleRate;
+
+            // 降采样 + 算能量
+            const n = Math.floor(input.length / HUM_DEC);
+            const dec = new Float32Array(n);
+            let rms = 0;
+            for (let i = 0; i < n; i++) {
+              let s = 0;
+              for (let k = 0; k < HUM_DEC; k++) s += input[i * HUM_DEC + k];
+              dec[i] = s / HUM_DEC;
+              rms += dec[i] * dec[i];
+            }
+            rms = Math.sqrt(rms / n);
+
+            const t = actx.currentTime - H.t0;
+            H.now = t;
+
+            const f = rms > 0.012 ? detectPitch(dec, sr / HUM_DEC) : 0;
+            const midi = f > 0 ? 69 + 12 * Math.log2(f / 440) : 0;
+
+            if (midi > 40 && midi < 84) {
+              H.trace.push({ t: t, midi: midi });
+              if (H.trace.length > 900) H.trace.shift();
+
+              const m = Math.round(midi);
+              if (cur && Math.abs(cur.midi - m) === 0) {
+                cur.dur = t - cur.start;
+              } else {
+                if (cur && cur.dur >= HUM_MIN_DUR) H.notes.push(cur);
+                cur = { midi: m, start: t, dur: 0.02 };
+              }
+            } else if (cur) {
+              if (cur.dur >= HUM_MIN_DUR) H.notes.push(cur);
+              cur = null;
+            }
+
+            if ($('#humtag')) $('#humtag').textContent = midi > 0 ? MT.midiName(Math.round(midi)) : '—';
+          };
+
+          const loop = function () {
+            if (!H.recording) return;
+            drawHum(canvas, H);
+            H.raf = root.requestAnimationFrame(loop);
+          };
+          loop();
+
+          H.stopHook = function () {
+            if (cur && cur.dur >= HUM_MIN_DUR) H.notes.push(cur);
+            cur = null;
+          };
+
+          renderHumOut();
+          $('#humout').innerHTML = '<p class="hint">正在录……对着麦克风哼一句，再按「停止」。</p>';
+        })
+        .catch(function () {
+          $('#humtip').textContent = '没拿到麦克风权限。可以在地址栏的网站设置里打开。';
+        });
+    }
+  };
+
+  /* ============================================================
    * 入口
    * ============================================================ */
 
@@ -576,13 +896,15 @@
     return '<div class="seg tabs" id="ptabs">' +
       '<button id="pkeys" data-tab="keys" class="' + (active === 'keys' ? 'on' : '') + '">键盘</button>' +
       '<button id="etab" data-tab="ear" class="' + (active === 'ear' ? 'on' : '') + '">磨耳朵</button>' +
+      '<button id="htab" data-tab="hum" class="' + (active === 'hum' ? 'on' : '') + '">哼唱</button>' +
       '</div>';
   }
 
   P.render = function (app) { S.tab = 'keys'; P.renderKeys(app); };
 
-  // 给自检用：出题逻辑可以脱离 DOM 单独验
+  // 给自检用：出题逻辑和音高检测可以脱离 DOM 单独验
   P._make = makeQuestion;
+  P._pitch = detectPitch;
   P._state = S;
 
   root.PRACTICE = P;

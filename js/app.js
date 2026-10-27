@@ -254,6 +254,11 @@
               '<div><h3>拆一首歌</h3><p>把你喜欢那首歌的 4 个和弦打进来，我告诉你这是哪个进行</p></div>' +
               '<span class="tool-go">→</span>' +
             '</a>' +
+            '<a class="tool-card" href="#/listen">' +
+              '<span class="tool-ico">♪</span>' +
+              '<div><h3>听写</h3><p>传一段音频，读出速度、调性，画一条和弦色带——不下结论，只给线索</p></div>' +
+              '<span class="tool-go">→</span>' +
+            '</a>' +
           '</div>' +
         '</section>' +
       '</section>';
@@ -282,6 +287,161 @@
         });
         listenBtn.classList.add('on');
       };
+    }
+  }
+
+  /* ============================================================
+   * 听写：从音频里读出线索
+   * ============================================================ */
+
+  function renderListen() {
+    teardown();
+    S.lesson = null;
+    setNav('listen');
+    if (!S.listen) S.listen = { buffer: null, name: '', result: null };
+
+    const st = S.listen;
+
+    $('#app').innerHTML =
+      '<section class="listen">' +
+        '<div class="lesson-top">' +
+          '<div class="crumbs"><a href="#/">目录</a><span class="sep">/</span><span>听写</span></div>' +
+        '</div>' +
+        '<div class="lesson-title">' +
+          '<h1>听写</h1>' +
+          '<span class="sub">让机器先听一遍，再由你的耳朵下结论</span>' +
+        '</div>' +
+
+        '<div class="drop">' +
+          '<input type="file" id="afile" accept="audio/*" hidden>' +
+          '<label for="afile" class="btn primary" id="picklabel">选一个音频文件</label>' +
+          '<button class="btn ghost" id="ademo">没有文件？听一个示例</button>' +
+          '<span class="caption" id="afname">mp3 / wav / m4a / flac 都行，音频不会上传</span>' +
+        '</div>' +
+
+        '<div class="listen-opts">' +
+          '<label>从第 <input type="number" id="astart" value="0" min="0" step="1"> 秒开始</label>' +
+          '<label>分析 <input type="number" id="alen" value="30" min="10" max="60" step="5"> 秒</label>' +
+          '<button class="btn" id="arun" disabled>开始分析</button>' +
+        '</div>' +
+
+        '<div id="lresult"></div>' +
+
+        '<p class="hint">' +
+          '这里<b>不会</b>给你「第 3 小节是 Bm」。和弦识别在密集混音上只有六七成准，错了又看不出来。' +
+          '它给的是三样你能自己验证的东西：速度、调性、和弦色带。' +
+        '</p>' +
+      '</section>';
+
+    const fileInput = $('#afile');
+    const runBtn = $('#arun');
+
+    fileInput.onchange = function () {
+      const f = fileInput.files && fileInput.files[0];
+      if (!f) return;
+      $('#afname').textContent = f.name + ' · 解码中…';
+      const AC = root.AudioContext || root.webkitAudioContext;
+      const ctx = new AC();
+      f.arrayBuffer()
+        .then(function (ab) { return ctx.decodeAudioData(ab); })
+        .then(function (buf) {
+          st.buffer = buf;
+          st.name = f.name;
+          st.result = null;
+          $('#afname').textContent = f.name + ' · ' + buf.duration.toFixed(1) + ' 秒';
+          runBtn.disabled = false;
+          try { ctx.close(); } catch (e) { /* noop */ }
+        })
+        .catch(function () {
+          $('#afname').textContent = '这个文件解不开，换一个试试';
+        });
+    };
+
+    $('#ademo').onclick = function () {
+      st.buffer = root.AUDIOLAB.demoBuffer();
+      st.name = '示例';
+      st.result = null;
+      $('#afname').textContent = '示例 · D–A–Bm–G，120 BPM，4 小节';
+      $('#astart').value = 0;
+      $('#alen').value = 8;
+      runBtn.disabled = false;
+      runBtn.click();
+    };
+
+    runBtn.onclick = function () {
+      if (!st.buffer) return;
+      const start = Math.max(0, Number($('#astart').value) || 0);
+      const len = Math.min(60, Math.max(4, Number($('#alen').value) || 30));
+      $('#lresult').innerHTML = '<p class="hint">正在分析……</p>';
+      runBtn.disabled = true;
+
+      root.setTimeout(function () {
+        let res;
+        try {
+          res = root.AUDIOLAB.analyze(st.buffer, { start: start, length: len });
+        } catch (e) {
+          $('#lresult').innerHTML = '<div class="feedback no">分析失败：' + esc(e.message) + '</div>';
+          runBtn.disabled = false;
+          return;
+        }
+        st.result = res;
+        runBtn.disabled = false;
+        renderListenResult();
+      }, 30);
+    };
+
+    function renderListenResult() {
+      const res = st.result;
+      if (!res) return;
+      const top = res.keys[0];
+      const second = res.keys[1];
+      const t = res.tempo;
+
+      const scale = MT.scalePcs(top.pc, top.mode);
+
+      $('#lresult').innerHTML =
+        '<div class="readout">' +
+          '<div class="readout-row">' +
+            '<div class="readout-label">速度</div>' +
+            '<div class="readout-value">' +
+              (t.bpm ? '<b>' + t.bpm + '</b> BPM' : '<b>—</b> 没测出来') +
+              (t.alt ? '（也可能是 ' + t.alt + '）' : '') +
+            '</div>' +
+            (t.bpm ? '<button class="btn ghost" id="click">▶ 听节拍</button>' : '') +
+          '</div>' +
+          '<div class="readout-row">' +
+            '<div class="readout-label">调性</div>' +
+            '<div class="readout-value">' +
+              '<b>' + esc(top.name) + '</b>' +
+              (second ? '（也可能是 ' + esc(second.name) + '）' : '') +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="strip-wrap">' +
+          '<canvas id="strip" class="strip"></canvas>' +
+          '<p class="caption">12 个音高类的能量随时间流动。<b>换和弦的地方，色带会跳一下。</b>' +
+            '亮的那一行是这个调里的音，最亮的一行是主音。</p>' +
+        '</div>' +
+
+        '<div class="feedback">' +
+          '拿这条色带去「<a href="#/analyze">拆一首歌</a>」里手动点和弦——' +
+          '你看哪一秒换的、换成什么，由你决定。' +
+        '</div>';
+
+      const strip = $('#strip');
+      if (strip) {
+        root.AUDIOLAB.renderStrip(strip, res, {
+          bpm: t.bpm,
+          tonicPc: top.pc,
+          scalePcs: scale
+        });
+      }
+
+      const click = $('#click');
+      if (click) {
+        click.onclick = function () { root.AUDIOLAB.clickTrack(t.bpm, 8); };
+      }
     }
   }
 
@@ -1254,6 +1414,11 @@
     const h = String(root.location.hash || '').replace(/^#\/?/, '');
     if (h === 'analyze') {
       renderAnalyze();
+      pulse();
+      return;
+    }
+    if (h === 'listen') {
+      renderListen();
       pulse();
       return;
     }

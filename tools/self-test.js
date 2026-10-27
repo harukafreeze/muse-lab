@@ -832,5 +832,78 @@ const degreeSeen = {};
 for (let i = 0; i < 400; i++) degreeSeen[PRACTICE._make('degree', 1).answer] = 1;
 ok(Object.keys(degreeSeen).length === 7, '级数题七级都出得到', Object.keys(degreeSeen).sort());
 
+/* ============================================================
+ * 7. 音频分析
+ * ============================================================ */
+
+console.log('\n[7] 音频分析');
+
+require('../js/audio-lab.js');
+const LAB = globalThis.AUDIOLAB;
+
+function fakeBuffer(samples, sr) {
+  return {
+    sampleRate: sr,
+    length: samples.length,
+    numberOfChannels: 1,
+    duration: samples.length / sr,
+    getChannelData: function () { return samples; }
+  };
+}
+
+// 节拍：每 60/bpm 秒一下
+function clickTrack(bpm, sec, sr) {
+  const n = Math.floor(sec * sr);
+  const d = new Float32Array(n);
+  const period = 60 / bpm;
+  for (let t = 0; t < sec; t += period) {
+    const i0 = Math.floor(t * sr);
+    for (let k = 0; k < 90; k++) {
+      if (i0 + k < n) d[i0 + k] = Math.sin(k * 0.9) * Math.exp(-k / 12) * 0.9;
+    }
+  }
+  return d;
+}
+
+const clickRes = LAB.analyze(fakeBuffer(clickTrack(120, 6, 44100), 44100), { length: 6 });
+ok(Math.abs(clickRes.tempo.bpm - 120) <= 4,
+  '120 BPM 的节拍测出来是 ' + clickRes.tempo.bpm, clickRes.tempo);
+
+const click90 = LAB.analyze(fakeBuffer(clickTrack(90, 8, 44100), 44100), { length: 8 });
+ok(Math.abs(click90.tempo.bpm - 90) <= 4,
+  '90 BPM 的节拍测出来是 ' + click90.tempo.bpm, click90.tempo);
+
+// 调性：D 大调三和弦铺 6 秒
+function chordTone(freqs, sec, sr) {
+  const n = Math.floor(sec * sr);
+  const d = new Float32Array(n);
+  freqs.forEach(function (f, i) {
+    for (let k = 0; k < n; k++) d[k] += Math.sin(2 * Math.PI * f * k / sr + i) * 0.22;
+  });
+  return d;
+}
+
+const dMajor = chordTone([146.83, 185.00, 220.00, 293.66, 369.99], 6, 44100);
+const keyRes = LAB.analyze(fakeBuffer(dMajor, 44100), { length: 6 });
+ok(keyRes.keys[0].name === 'D 大调' || keyRes.keys[0].name === 'B 小调',
+  'D 大调和弦铺底，首候选是 ' + keyRes.keys[0].name,
+  keyRes.keys.map(function (k) { return k.name; }));
+ok(keyRes.keys.length >= 2, '给两个候选（关系大小调分不清是常态）', keyRes.keys.length);
+
+// 音高检测
+const sr12 = 12000;
+function tone(hz) {
+  const b = new Float32Array(1024);
+  for (let i = 0; i < b.length; i++) b[i] = Math.sin(2 * Math.PI * hz * i / sr12) * 0.5;
+  return b;
+}
+const f220 = PRACTICE._pitch(tone(220), sr12);
+ok(Math.abs(f220 - 220) < 4, '单音 220Hz 测出 ' + f220.toFixed(1) + 'Hz', f220);
+
+const f440 = PRACTICE._pitch(tone(440), sr12);
+ok(Math.abs(f440 - 440) < 8, '单音 440Hz 测出 ' + f440.toFixed(1) + 'Hz', f440);
+
+ok(PRACTICE._pitch(new Float32Array(1024), sr12) === 0, '静音不瞎报音高');
+
 console.log('\n结果：' + pass + ' 通过 / ' + fail + ' 失败');
 process.exit(fail === 0 ? 0 : 1);

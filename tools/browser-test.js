@@ -134,8 +134,8 @@ async function main() {
     ok(await js('return document.querySelectorAll(".card:not(.tool)").length') === 11, '十一张课程卡片（1–13 课，去掉 6、9）');
     ok(await js('return document.querySelectorAll("a.card:not(.tool)").length') === 11, '十一课都是链接');
     ok(await js('return /^01$/.test(document.querySelector(".card-no").textContent)'), '第一张卡是第 1 课');
-    ok(await js('return document.querySelectorAll(".tool-card").length') === 2, '首页有两个工具入口');
-    ok(await js('return document.querySelectorAll(".site-nav a").length') === 3, '顶栏三个导航');
+    ok(await js('return document.querySelectorAll(".tool-card").length') === 3, '首页有三个工具入口');
+    ok(await js('return document.querySelectorAll(".site-nav a").length') === 4, '顶栏四个导航');
     ok(await js('return !!document.querySelector(".hero .btn.primary")'), 'hero 有主按钮');
     ok(await js('return /已完成/.test(document.querySelector(".progress-band").textContent)'), '有进度条');
     await shot('e2e-home');
@@ -743,6 +743,75 @@ async function main() {
     ok(await js('return !!document.querySelector("#fb") && !!document.querySelector("#next")'), '检查后给反馈并能继续');
     await shot('e2e-ear-play');
 
+    /* ---------- 听写 ---------- */
+    console.log('\n[听写] 音频分析');
+    await js('location.hash = "#/listen"');
+    await sleep(400);
+    ok(await js('return !!document.querySelector("#afile")'), '有文件选择框');
+    ok(await js('return document.querySelector("#arun").disabled'), '没选文件时「分析」是灰的');
+
+    // 在页面里造一段 120 BPM 的节拍 + D 大调和弦，直接喂给分析器
+    const lab = await js(`
+      var sr = 44100, sec = 4, n = sr * sec;
+      var ch = new Float32Array(n);
+      for (var t = 0; t < sec; t += 0.5) {
+        var i0 = Math.floor(t * sr);
+        for (var k = 0; k < 90; k++) ch[i0 + k] = Math.sin(k * 0.9) * Math.exp(-k / 12) * 0.6;
+      }
+      [146.83, 185.0, 220.0, 293.66].forEach(function (f) {
+        for (var i = 0; i < n; i++) ch[i] += Math.sin(2 * Math.PI * f * i / sr) * 0.12;
+      });
+      var buf = {
+        sampleRate: sr, length: n, numberOfChannels: 1, duration: sec,
+        getChannelData: function () { return ch; }
+      };
+      var res = AUDIOLAB.analyze(buf, { length: 4 });
+      return { bpm: res.tempo.bpm, alt: res.tempo.alt, key: res.keys[0].name, frames: res.frames.length };
+    `);
+    ok(Math.abs(lab.bpm - 120) <= 5, '页面里跑分析：' + lab.bpm + ' BPM', lab);
+    ok(/大调|小调/.test(lab.key), '页面里跑分析：调性 ' + lab.key);
+    ok(lab.frames > 100, '色带数据有 ' + lab.frames + ' 帧');
+
+    // 画色带不抛异常
+    await js(`
+      var c = document.createElement('canvas');
+      c.style.width = '600px'; c.style.height = '180px';
+      document.querySelector('#lresult').appendChild(c);
+      var sr2 = 44100, sec2 = 2, n2 = sr2 * sec2;
+      var ch2 = new Float32Array(n2);
+      for (var i = 0; i < n2; i++) ch2[i] = Math.sin(2 * Math.PI * 220 * i / sr2) * 0.4;
+      var b2 = { sampleRate: sr2, length: n2, numberOfChannels: 1, duration: sec2, getChannelData: function () { return ch2; } };
+      AUDIOLAB.renderStrip(c, AUDIOLAB.analyze(b2, { length: 2 }), { bpm: 120, tonicPc: 9, scalePcs: [9,11,0,2,4,5,7] });
+      return c.width > 0;
+    `);
+    ok(await js('return true'), '色带能画出来');
+
+    // 走一遍完整 UI：示例音频 → 读数 → 色带
+    await js('document.querySelector("#ademo").click()');
+    await sleep(1200);
+    ok(await js('return !!document.querySelector(".readout")'), '分析完出读数卡');
+    const readout = await js('return document.querySelector(".readout").textContent');
+    ok(/BPM/.test(readout), '读数里有速度', readout);
+    ok(/大调|小调/.test(readout), '读数里有调性', readout);
+    ok(await js('return !!document.querySelector("#strip")'), '色带画出来了');
+    ok(await js('return document.querySelectorAll(".readout-row").length === 2'), '两行读数：速度 + 调性');
+    await shot('e2e-listen');
+
+    /* ---------- 哼唱 ---------- */
+    console.log('\n[哼唱]');
+    await js('location.hash = "#/practice"');
+    await sleep(400);
+    await js('document.querySelector("#htab").click()');
+    await sleep(300);
+    ok(await js('return !!document.querySelector("#humcv")'), '哼唱页有波形画布');
+    ok(await js('return !!document.querySelector("#humgo")'), '有开始按钮');
+
+    // 无头环境没有麦克风，点一下应该优雅地给出提示，而不是崩
+    await js('document.querySelector("#humgo").click()');
+    await sleep(600);
+    ok(await js('return true'), '没有麦克风时不会崩');
+    await shot('e2e-hum');
+
     /* ---------- 手机 ---------- */
     console.log('\n[13] 手机尺寸');
     await send('Emulation.setDeviceMetricsOverride', {
@@ -763,6 +832,7 @@ async function main() {
     await shot('e2e-mobile-analyze');
     await overflowOn('#/l13/3', '节奏课');
     await overflowOn('#/practice', '练习页');
+    await overflowOn('#/listen', '听写页');
 
     /* ---------- 控制台 ---------- */
     console.log('\n[14] 控制台');
