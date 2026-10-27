@@ -1451,6 +1451,25 @@
   MP.load();
   root.addEventListener('hashchange', route);
 
+  // 深浅色切换：切完重绘当前页（画布的颜色是画上去的，不会自己变）
+  (function initTheme() {
+    const T = root.THEME;
+    const btn = $('#themebtn');
+    if (!T) return;
+    const paint = function () {
+      if (btn) btn.textContent = T.isLight() ? '☾' : '☀';
+    };
+    paint();
+    if (btn) {
+      btn.onclick = function () {
+        T.toggle();
+        paint();
+        route();
+      };
+    }
+    if (T.isLight === undefined) return;
+  })();
+
   // 切走标签页就把声音停掉
   doc.addEventListener('visibilitychange', function () {
     if (doc.hidden) {

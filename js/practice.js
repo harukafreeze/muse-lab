@@ -640,8 +640,11 @@
     }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+    const C = root.THEME ? root.THEME.palette()
+      : { bg: '#141a22', note: '#5fd39a', mel: '#78c8ff', stripe: 'rgba(255,255,255,.05)' };
+
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#141a22';
+    ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, w, h);
 
     const lo = 45, hi = 79;
@@ -651,7 +654,7 @@
     // 八度线
     for (let m = lo; m <= hi; m++) {
       if (m % 12 === 0) {
-        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.fillStyle = C.stripe;
         ctx.fillRect(0, yOf(m), w, rowH);
       }
     }
@@ -665,12 +668,14 @@
       if (n.start + n.dur < t0) return;
       const x0 = ((n.start - t0) / span) * w;
       const x1 = ((n.start + n.dur - t0) / span) * w;
-      ctx.fillStyle = 'rgba(95,211,154,0.85)';
+      ctx.fillStyle = C.note;
+      ctx.globalAlpha = 0.85;
       ctx.fillRect(x0, yOf(n.midi) + 1, Math.max(2, x1 - x0 - 1), Math.max(3, rowH - 2));
+      ctx.globalAlpha = 1;
     });
 
     // 正在唱的那条线
-    ctx.strokeStyle = '#78c8ff';
+    ctx.strokeStyle = C.mel;
     ctx.lineWidth = 2;
     ctx.beginPath();
     let started = false;
@@ -900,7 +905,12 @@
       '</div>';
   }
 
-  P.render = function (app) { S.tab = 'keys'; P.renderKeys(app); };
+  P.render = function (app) {
+    const tab = S.tab || 'keys';
+    if (tab === 'ear') P.renderEar(app);
+    else if (tab === 'hum') P.renderHum(app);
+    else P.renderKeys(app);
+  };
 
   // 给自检用：出题逻辑和音高检测可以脱离 DOM 单独验
   P._make = makeQuestion;

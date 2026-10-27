@@ -23,6 +23,10 @@
 
 ![首页](docs/preview/home.png)
 
+右上角可以切换**深色 / 浅色**（默认浅色，选择存在本地）。
+
+![深色](docs/preview/home-dark.png)
+
 **▶ 在线版：<https://harukafreeze.github.io/muse-lab/>**（手机也能开，戴着耳机练）
 
 **▶ 本地打开：双击 `index.html`**（无构建、无后端、断网可用。也可以 `python -m http.server 8080` 再开 `127.0.0.1:8080`）
@@ -282,7 +286,7 @@ web/
 ├── docs/preview/       README 里的截图
 └── tools/
     ├── self-test.js    内核自检（乐理、课程、MIDI、走带、鼓、出题、DSP），269 项
-    ├── browser-test.js 端到端（CDP 驱动无头 Chrome，含离线音频分析），121 项
+    ├── browser-test.js 端到端（CDP 驱动无头 Chrome，含离线音频分析），127 项
     └── shots/          测试自动生成的截图
 ```
 

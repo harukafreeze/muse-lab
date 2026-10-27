@@ -11,17 +11,8 @@
   const MT = root.MT;
   const PR = {};
 
-  const COLOR = {
-    bg: '#141a22',
-    stripe: 'rgba(255,255,255,0.022)',
-    grid: 'rgba(255,255,255,0.055)',
-    bar: 'rgba(255,255,255,0.18)',
-    note: '#5fd39a',
-    noteEdge: 'rgba(255,255,255,0.5)',
-    empty: 'rgba(255,255,255,0.16)',
-    label: 'rgba(255,255,255,0.72)',
-    head: '#e0a44b'
-  };
+  // 画布上的颜色全部来自 CSS 变量（见 theme.js 的 palette()），
+  // 所以深浅色切换只要改属性、重画就行。
 
   const LOW = 45;    // A2
   const HIGH = 77;   // F5
@@ -132,6 +123,7 @@
   PR.Grid.prototype.draw = function () {
     const ctx = this.ctx;
     if (!ctx || !this.w) return;
+    const C = root.THEME.palette();
     const w = this.w, h = this.h;
     const padTop = 16, padBot = 34;
     const rows = HIGH - LOW + 1;
@@ -140,7 +132,7 @@
     const barW = w / this.bars;
 
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = COLOR.bg;
+    ctx.fillStyle = C.bg;
     rr(ctx, 0, 0, w, h, 10);
     ctx.fill();
 
@@ -148,11 +140,11 @@
     for (let m = LOW; m <= HIGH; m++) {
       const y = padTop + (HIGH - m) * rowH;
       if (isBlack(m)) {
-        ctx.fillStyle = COLOR.stripe;
+        ctx.fillStyle = C.stripe;
         ctx.fillRect(0, y, w, rowH);
       }
       if (((m % 12) + 12) % 12 === 0) {
-        ctx.strokeStyle = COLOR.grid;
+        ctx.strokeStyle = C.grid;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, y + 0.5);
@@ -164,7 +156,7 @@
     /* 小节线 */
     for (let b = 0; b <= this.bars; b++) {
       const x = Math.round(b * barW) + 0.5;
-      ctx.strokeStyle = b === 0 || b === this.bars ? COLOR.bar : COLOR.grid;
+      ctx.strokeStyle = b === 0 || b === this.bars ? C.bar : C.grid;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(x, padTop - 6);
@@ -179,7 +171,7 @@
       if (!label) {
         ctx.save();
         ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = COLOR.empty;
+        ctx.strokeStyle = C.empty;
         ctx.lineWidth = 1;
         rr(ctx, x0 + 6, padTop + 4, barW - 12, gridH - 8, 6);
         ctx.stroke();
@@ -190,10 +182,10 @@
       v.notes.forEach(function (m) {
         const y = padTop + (HIGH - m) * rowH;
         const bh = Math.max(4, rowH - 1.5);
-        ctx.fillStyle = COLOR.note;
+        ctx.fillStyle = C.note;
         rr(ctx, x0 + 6, y + 0.5, barW - 12, bh, Math.min(3, bh / 2));
         ctx.fill();
-        ctx.strokeStyle = COLOR.noteEdge;
+        ctx.strokeStyle = C.noteEdge;
         ctx.lineWidth = 0.6;
         ctx.stroke();
       });
@@ -204,23 +196,23 @@
     for (let b = 0; b < this.bars; b++) {
       const cx = b * barW + barW / 2;
       ctx.font = '600 12px ui-sans-serif, system-ui, sans-serif';
-      ctx.fillStyle = this.chords[b] ? '#dff7e9' : 'rgba(255,255,255,0.3)';
+      ctx.fillStyle = this.chords[b] ? C.note : C.dim;
       ctx.fillText(this.chords[b] || '空', cx, h - padBot + 20);
       ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillStyle = C.dim;
       ctx.fillText(String(b + 1), cx, padTop - 5);
     }
 
     /* 播放头 */
     if (this.head && this.head.barFloat != null) {
       const x = Math.round((this.head.barFloat % this.bars) * barW) + 0.5;
-      ctx.strokeStyle = COLOR.head;
+      ctx.strokeStyle = C.head;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(x, padTop - 8);
       ctx.lineTo(x, h - padBot + 8);
       ctx.stroke();
-      ctx.fillStyle = COLOR.head;
+      ctx.fillStyle = C.head;
       ctx.beginPath();
       ctx.arc(x, padTop - 10, 3, 0, Math.PI * 2);
       ctx.fill();
@@ -351,6 +343,7 @@
   PR.MelodyGrid.prototype.draw = function () {
     const ctx = this.ctx;
     if (!ctx || !this.w) return;
+    const C = root.THEME.palette();
     const self = this;
     const w = this.w, h = this.h;
     const padTop = 12, padBot = 36;
@@ -364,7 +357,7 @@
     function yOf(m) { return padTop + (self.high - m) * rowH; }
 
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = COLOR.bg;
+    ctx.fillStyle = C.bg;
     rr(ctx, 0, 0, w, h, 10);
     ctx.fill();
 
@@ -374,7 +367,7 @@
       if (!pcs) continue;
       for (let m = this.low; m <= this.high; m++) {
         if (pcs.indexOf(((m % 12) + 12) % 12) >= 0) {
-          ctx.fillStyle = MEL.tone;
+          ctx.fillStyle = C.tone;
           ctx.fillRect(b * barW, yOf(m), barW, rowH);
         }
       }
@@ -384,7 +377,7 @@
     for (let m = this.low; m <= this.high; m++) {
       const y = yOf(m);
       if (((m % 12) + 12) % 12 === 0) {
-        ctx.strokeStyle = COLOR.grid;
+        ctx.strokeStyle = C.grid;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(0, y + 0.5);
@@ -397,7 +390,7 @@
     for (let i = 0; i <= cols; i++) {
       const x = Math.round(i * colW) + 0.5;
       const isBar = i % this.beats === 0;
-      ctx.strokeStyle = isBar ? COLOR.bar : 'rgba(255,255,255,0.045)';
+      ctx.strokeStyle = isBar ? C.bar : C.grid;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(x, padTop);
@@ -409,10 +402,10 @@
     for (let i = 0; i < cols; i++) {
       const m = this.slots[i];
       if (m == null) continue;
-      ctx.fillStyle = MEL.note;
+      ctx.fillStyle = C.note;
       rr(ctx, i * colW + 2, yOf(m) + 1, colW - 4, Math.max(5, rowH - 2), 3);
       ctx.fill();
-      ctx.strokeStyle = MEL.edge;
+      ctx.strokeStyle = C.noteEdge;
       ctx.lineWidth = 0.6;
       ctx.stroke();
     }
@@ -422,7 +415,7 @@
       const y = yOf(this.paint) + rowH / 2;
       ctx.save();
       ctx.setLineDash([3, 5]);
-      ctx.strokeStyle = MEL.ghost;
+      ctx.strokeStyle = C.ghost;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(0, y);
@@ -436,17 +429,17 @@
     for (let b = 0; b < this.bars; b++) {
       const cx = b * barW + barW / 2;
       ctx.font = '600 12px ui-sans-serif, system-ui, sans-serif';
-      ctx.fillStyle = this.chords[b] ? '#dff7e9' : 'rgba(255,255,255,0.3)';
+      ctx.fillStyle = this.chords[b] ? C.note : C.dim;
       ctx.fillText(this.chords[b] || '—', cx, h - padBot + 21);
       ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillStyle = C.dim;
       ctx.fillText(String(b + 1), cx, h - padBot + 34);
     }
 
     /* 播放头 */
     if (this.head && this.head.barFloat != null) {
       const x = Math.round((this.head.barFloat % this.bars) * barW) + 0.5;
-      ctx.strokeStyle = COLOR.head;
+      ctx.strokeStyle = C.head;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(x, padTop - 6);
@@ -565,6 +558,7 @@
   PR.RhythmGrid.prototype.draw = function () {
     const ctx = this.ctx;
     if (!ctx || !this.w) return;
+    const C = root.THEME.palette();
     const self = this;
     const w = this.w, h = this.h;
     const gutter = RHY.gutter;
@@ -574,14 +568,14 @@
     const pad = Math.min(5, cellW * 0.14);
 
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = COLOR.bg;
+    ctx.fillStyle = C.bg;
     rr(ctx, 0, 0, w, h, 10);
     ctx.fill();
 
     /* 拍线：每两格一拍 */
     for (let b = 0; b <= 4; b++) {
       const x = Math.round(gutter + b * 2 * cellW) + 0.5;
-      ctx.strokeStyle = b === 0 || b === 4 ? COLOR.bar : 'rgba(255,255,255,0.08)';
+      ctx.strokeStyle = b === 0 || b === 4 ? C.bar : C.grid;
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(x, 6);
@@ -596,17 +590,17 @@
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
       ctx.font = '600 12px ui-sans-serif, system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillStyle = C.label;
       ctx.fillText(row.label, gutter - 12, top + (rowH - 6) / 2);
 
       for (let c = 0; c < 8; c++) {
         const x = gutter + c * cellW;
         const active = self.pattern[row.key][c];
-        ctx.fillStyle = active ? row.color : 'rgba(255,255,255,0.035)';
+        ctx.fillStyle = active ? (row.key === 'hats' ? C.hat : row.key === 'snare' ? C.snare : C.kick) : C.stripe;
         rr(ctx, x + pad, top + pad, cellW - pad * 2, rowH - 6 - pad * 2, 4);
         ctx.fill();
         if (active) {
-          ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+          ctx.strokeStyle = C.noteEdge;
           ctx.lineWidth = 0.8;
           ctx.stroke();
         }
@@ -617,7 +611,7 @@
     ctx.textAlign = 'center';
     ctx.textBaseline = 'alphabetic';
     ctx.font = '11px ui-sans-serif, system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillStyle = C.dim;
     for (let b = 0; b < 4; b++) {
       ctx.fillText('第 ' + (b + 1) + ' 拍', gutter + (b * 2 + 1) * cellW, h - 6);
     }
@@ -625,7 +619,7 @@
     /* 播放头（按八分格走） */
     if (this.head && this.head.beat != null) {
       const x = Math.round(gutter + (this.head.beat / 4) * gridW) + 0.5;
-      ctx.strokeStyle = COLOR.head;
+      ctx.strokeStyle = C.head;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(x, 4);

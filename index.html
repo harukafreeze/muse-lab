@@ -3,10 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="dark light">
 <title>muse lab · 从听出「落」到写出自己的 8 小节</title>
-<meta name="description" content="给 Vocaloid 写歌的人用的练习站：十一课，先听再动手，最后导出一个能拖进 Studio One 的 8 小节。声音全部由浏览器现场合成。">
+<meta name="description" content="给 Vocaloid 写歌的人用的练习站：十二课，先听再动手，最后导出一个能拖进 Studio One 的 8 小节。声音全部由浏览器现场合成。">
 <link rel="stylesheet" href="css/style.css">
+<script>
+  // 在首屏绘制之前就把主题定下来，不然会闪一下
+  try {
+    document.documentElement.setAttribute('data-theme', localStorage.getItem('muse.theme') || 'light');
+  } catch (e) {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+</script>
 </head>
 <body>
 
@@ -18,7 +26,8 @@
     <a href="#/analyze" data-nav="analyze">拆歌</a>
     <a href="#/listen" data-nav="listen">听写</a>
   </nav>
-  <span class="pill" id="pill">0 / 11</span>
+  <span class="pill" id="pill">0 / 12</span>
+  <button class="theme-btn" id="themebtn" title="切换深浅色" aria-label="切换深浅色">☾</button>
 </header>
 
 <main id="app"></main>
@@ -37,6 +46,7 @@
 <noscript><p class="noscript">这个站要靠 JavaScript 发声，请打开它。</p></noscript>
 
 <!-- 普通 script，不用 module：这样 file:// 双击打开不会被 CORS 拦住 -->
+<script src="js/theme.js"></script>
 <script src="js/theory.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/midi.js"></script>

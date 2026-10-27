@@ -316,8 +316,11 @@
     const gridH = h - padT - padB;
     const rowH = gridH / 12;
 
+    const C = root.THEME ? root.THEME.palette() : null;
+    const col = C || { bg: '#141a22', tone: 'rgba(95,211,154,.1)', note: '#5fd39a', dim: 'rgba(255,255,255,.32)', mel: '#78c8ff', bar: 'rgba(255,255,255,.16)' };
+
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#141a22';
+    ctx.fillStyle = col.bg;
     ctx.fillRect(0, 0, w, h);
 
     const frames = res.frames;
@@ -332,14 +335,16 @@
       const pc = row;
       const y = padT + row * rowH;
       if (scale.indexOf(pc) >= 0) {
-        ctx.fillStyle = 'rgba(95,211,154,0.045)';
+        ctx.fillStyle = col.tone;
         ctx.fillRect(padL, y, gridW, rowH);
       }
       if (pc === tonic) {
-        ctx.fillStyle = 'rgba(95,211,154,0.10)';
+        ctx.fillStyle = col.tone;
+        ctx.globalAlpha = 2;
         ctx.fillRect(padL, y, gridW, rowH);
+        ctx.globalAlpha = 1;
       }
-      ctx.fillStyle = pc === tonic ? '#5fd39a' : 'rgba(255,255,255,0.32)';
+      ctx.fillStyle = pc === tonic ? col.note : col.dim;
       ctx.font = (pc === tonic ? '600 ' : '') + '10px ui-sans-serif, system-ui, sans-serif';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
@@ -354,8 +359,10 @@
         const v = Math.min(1, f[pc] * 3.2);
         if (v <= 0.02) continue;
         const y = padT + (11 - pc) * rowH;
-        ctx.fillStyle = 'rgba(120,200,255,' + (v * 0.9).toFixed(3) + ')';
+        ctx.fillStyle = col.mel;
+        ctx.globalAlpha = v * 0.9;
         ctx.fillRect(x, y, Math.ceil(colW), rowH);
+        ctx.globalAlpha = 1;
       }
     }
 
@@ -363,7 +370,7 @@
     const bpm = o.bpm;
     if (bpm) {
       const barSec = 4 * 60 / bpm;
-      ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+      ctx.strokeStyle = col.bar;
       ctx.lineWidth = 1;
       for (let t = 0; t <= res.duration; t += barSec) {
         const x = Math.round(padL + (t / res.duration) * gridW) + 0.5;
@@ -375,7 +382,7 @@
     }
 
     // 时间刻度
-    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillStyle = col.dim;
     ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';

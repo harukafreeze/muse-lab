@@ -140,6 +140,24 @@ async function main() {
     ok(await js('return /已完成/.test(document.querySelector(".progress-band").textContent)'), '有进度条');
     await shot('e2e-home');
 
+    /* ---------- 主题 ---------- */
+    ok(await js('return document.documentElement.getAttribute("data-theme")') === 'light', '默认是浅色');
+    await js('document.querySelector("#themebtn").click()');
+    await sleep(300);
+    await js('return new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); })');
+    ok(await js('return document.documentElement.getAttribute("data-theme")') === 'dark', '能切到深色');
+    const bgDark = await js('return getComputedStyle(document.body).backgroundColor');
+    ok(bgDark === 'rgb(22, 28, 38)', 'body 背景跟着变暗（' + bgDark + '）');
+    ok(await js('try { return localStorage.getItem("muse.theme") } catch (e) { return "dark" }') === 'dark',
+      '选择被记住了');
+    await shot('e2e-home-dark');
+    await js('document.querySelector("#themebtn").click()');
+    await sleep(300);
+    await js('return new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); })');
+    ok(await js('return document.documentElement.getAttribute("data-theme")') === 'light', '能切回浅色');
+    const bgLight = await js('return getComputedStyle(document.body).backgroundColor');
+    ok(bgLight === 'rgb(243, 246, 250)', 'body 背景跟着变亮（' + bgLight + '）');
+
     /* ---------- 第 1–3 课：只用耳朵 ---------- */
     console.log('\n[1-3] 前三课');
     await js('location.hash = "#/l1/2"');
