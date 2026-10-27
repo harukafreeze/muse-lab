@@ -148,6 +148,18 @@
     if (btn) btn.disabled = !S.gated;
   }
 
+  /** 顶栏高亮 */
+  function setNav(active) {
+    $$('.topbar .site-nav a').forEach(function (a) {
+      a.classList.toggle('on', a.dataset.nav === active);
+    });
+    const pill = $('#pill');
+    if (pill) {
+      const done = MP.doneCount(ML.LESSONS.map(function (l) { return l.id; }));
+      pill.textContent = done + ' / ' + ML.LESSONS.length;
+    }
+  }
+
   /* ============================================================
    * 目录
    * ============================================================ */
@@ -156,12 +168,20 @@
     teardown();
     S.lesson = null;
     const app = $('#app');
-    const tag = $('.topbar .tag');
-    if (tag) tag.textContent = '和声 · 旋律 · 句子 · 节奏';
+    setNav('home');
+
     const ids = ML.LESSONS.map(function (l) { return l.id; });
     const done = MP.doneCount(ids);
+    const total = ML.LESSONS.length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
 
-    const cards = ML.LESSONS.map(function (l) {
+    // 继续：第一课还没过的
+    const next = ML.LESSONS.filter(function (l) { return !MP.isDone(l.id); })[0] || ML.LESSONS[0];
+    const nextLabel = done === 0
+      ? '从第 1 课开始'
+      : (done === total ? '从头再看一遍' : '继续第 ' + next.no + ' 课');
+
+    function card(l) {
       const isDone = MP.isDone(l.id);
       return (
         '<a class="card' + (isDone ? ' done' : '') + '" href="#/' + l.id + '/1">' +
@@ -171,55 +191,98 @@
             '<p>' + esc(l.sub) + '</p>' +
             '<p class="card-goal">' + esc(l.goal) + '</p>' +
           '</div>' +
-          '<div class="card-state">' + (isDone ? '已通过' : '可以开始') + '</div>' +
+          '<div class="card-state">' + (isDone ? '已通过' : '待学') + '</div>' +
         '</a>'
       );
-    }).join('');
+    }
 
-    const planned = ML.PLANNED.map(function (p) {
+    function phase(title, desc, list) {
       return (
-        '<div class="card planned">' +
-          '<div class="card-no">' + String(p.no).padStart(2, '0') + '</div>' +
-          '<div class="card-main"><h3>' + esc(p.title) + '</h3><p>' + esc(p.sub) + '</p></div>' +
-          '<div class="card-state">待做</div>' +
-        '</div>'
+        '<section class="phase">' +
+          '<header class="phase-head">' +
+            '<h2>' + title + '</h2>' +
+            '<p>' + desc + '</p>' +
+          '</header>' +
+          '<div class="cards grid">' + list.map(card).join('') + '</div>' +
+        '</section>'
       );
-    }).join('');
+    }
+
+    const listen = ML.LESSONS.filter(function (l) { return l.no <= 3; });
+    const write = ML.LESSONS.filter(function (l) { return l.no > 3; });
 
     app.innerHTML =
       '<section class="home">' +
-        '<p class="kicker">muse lab</p>' +
-        '<h1>从听出「落」开始，<br>写到自己的 8 小节。</h1>' +
-        '<p class="lead">' +
-          '每一课只干一件事：先听，再动手，然后换一道新题。' +
-          '所有声音都是浏览器现算的合成音——戴耳机，手机外放听不出低音。' +
-        '</p>' +
-        '<div class="arc" aria-hidden="true">' +
-          '<span>听</span><i></i><span>和声</span><i></i><span>旋律</span>' +
-          '<i></i><span>句子</span><i></i><span>节奏</span><i></i><span>8 小节</span>' +
+        '<div class="hero">' +
+          '<p class="kicker">写歌练习站 · 十一课</p>' +
+          '<h1>从听出「落」开始，<br>写到自己的 8 小节。</h1>' +
+          '<p class="lead">' +
+            '每一课只干一件事：先听，再动手，然后换一道新题。' +
+            '所有声音都是浏览器现场合成的——不用装任何东西，戴上耳机就能开始。' +
+          '</p>' +
+          '<div class="hero-actions">' +
+            '<a class="btn primary lg" href="#/' + next.id + '/1">' + nextLabel + '</a>' +
+            '<a class="btn ghost lg" href="#/practice">自由练习</a>' +
+            '<a class="btn ghost lg" href="#/analyze">拆一首歌</a>' +
+          '</div>' +
+          '<button class="hero-listen" id="hero-listen">' +
+            '<span class="dot"></span>先听一段：D–A–Bm–G，带鼓' +
+          '</button>' +
         '</div>' +
-        '<div class="progress-line">已通过 <b>' + done + '</b> / ' + ML.LESSONS.length + ' 课</div>' +
-        '<div class="cards">' + cards + planned + '</div>' +
-        '<a class="card tool" href="#/analyze">' +
-          '<div class="card-no">↗</div>' +
-          '<div class="card-main">' +
-            '<h3>拆一首歌</h3>' +
-            '<p>把你喜欢那首歌里的 4 个和弦打进来</p>' +
-            '<p class="card-goal">我告诉你这是 1-5-6m-4，还是别的什么</p>' +
+
+        '<div class="progress-band">' +
+          '<div class="track"><i style="width:' + pct + '%"></i></div>' +
+          '<span>已完成 <b>' + done + '</b> / ' + total + '</span>' +
+        '</div>' +
+
+        phase('第一步 · 打开耳朵', '三课，不碰软件、不出现乐理名词。只有一个动作：听，然后选。', listen) +
+        phase('第二步 · 写出来', '从两个和弦起手，一路摆到 8 小节的主歌和副歌。', write) +
+
+        '<section class="phase">' +
+          '<header class="phase-head">' +
+            '<h2>随手用</h2>' +
+            '<p>不用按顺序走。想练哪块练哪块。</p>' +
+          '</header>' +
+          '<div class="tools">' +
+            '<a class="tool-card" href="#/practice">' +
+              '<span class="tool-ico">⌨</span>' +
+              '<div><h3>自由练习</h3><p>能弹的键盘，加磨耳朵的随机题：级数、音程、和弦、按和弦</p></div>' +
+              '<span class="tool-go">→</span>' +
+            '</a>' +
+            '<a class="tool-card" href="#/analyze">' +
+              '<span class="tool-ico">↗</span>' +
+              '<div><h3>拆一首歌</h3><p>把你喜欢那首歌的 4 个和弦打进来，我告诉你这是哪个进行</p></div>' +
+              '<span class="tool-go">→</span>' +
+            '</a>' +
           '</div>' +
-          '<div class="card-state">工具</div>' +
-        '</a>' +
-        '<a class="card tool" href="#/practice">' +
-          '<div class="card-no">⌨</div>' +
-          '<div class="card-main">' +
-            '<h3>自由练习</h3>' +
-            '<p>能弹的键盘 + 磨耳朵的随机题</p>' +
-            '<p class="card-goal">不用按顺序走，想练哪块练哪块</p>' +
-          '</div>' +
-          '<div class="card-state">工具</div>' +
-        '</a>' +
-        '<p class="foot">没有账号 · 没有云端 · 进度只在这台机器上</p>' +
+        '</section>' +
       '</section>';
+
+    const listenBtn = $('#hero-listen');
+    if (listenBtn) {
+      listenBtn.onclick = function () {
+        if (S.handle) {
+          S.handle.stop();
+          S.handle = null;
+          listenBtn.classList.remove('on');
+          return;
+        }
+        S.handle = MA.play({
+          chordsA: ['D', 'A', 'Bm', 'G', 'D', 'A', 'Bm', 'G'],
+          bars: 8,
+          bpm: 100,
+          bass: true,
+          drums: {
+            patterns: [
+              { hats: [1, 0, 1, 0, 1, 0, 1, 0], snare: [0, 0, 0, 0, 1, 0, 0, 0], kick: [1, 0, 0, 0, 0, 0, 0, 0] },
+              { hats: [1, 1, 1, 1, 1, 1, 1, 1], snare: [0, 0, 1, 0, 0, 0, 1, 0], kick: [1, 0, 0, 0, 1, 0, 0, 0] }
+            ],
+            map: [0, 0, 1, 1]
+          }
+        });
+        listenBtn.classList.add('on');
+      };
+    }
   }
 
   /* ============================================================
@@ -254,8 +317,7 @@
     if (!S.analyze) S.analyze = { keyPc: 2, mode: 'major', chords: [] };
     const st = S.analyze;
 
-    const tag = $('.topbar .tag');
-    if (tag) tag.textContent = '拆一首歌';
+    setNav('analyze');
 
     const minor = st.mode === 'minor';
     const chords = diatonicChords(st.keyPc, st.mode);
@@ -456,8 +518,7 @@
     else S.gated = false;
 
     // 顶栏那行跟着课走
-    const tag = $('.topbar .tag');
-    if (tag) tag.textContent = '第 ' + lesson.no + ' 课 · ' + lesson.title;
+    setNav('home');
 
     const dots = lesson.steps.map(function (s, i) {
       return '<span class="dot' + (i < S.index ? ' past' : i === S.index ? ' now' : '') + '"></span>';
@@ -1197,8 +1258,7 @@
       return;
     }
     if (h === 'practice') {
-      const t = $('.topbar .tag');
-      if (t) t.textContent = '自由练习';
+      setNav('practice');
       root.PRACTICE.render($('#app'));
       pulse();
       return;

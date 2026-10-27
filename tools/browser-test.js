@@ -134,7 +134,10 @@ async function main() {
     ok(await js('return document.querySelectorAll(".card:not(.tool)").length') === 11, '十一张课程卡片（1–13 课，去掉 6、9）');
     ok(await js('return document.querySelectorAll("a.card:not(.tool)").length') === 11, '十一课都是链接');
     ok(await js('return /^01$/.test(document.querySelector(".card-no").textContent)'), '第一张卡是第 1 课');
-    ok(await js('return !!document.querySelector("a.card.tool")'), '首页有「拆一首歌」入口');
+    ok(await js('return document.querySelectorAll(".tool-card").length') === 2, '首页有两个工具入口');
+    ok(await js('return document.querySelectorAll(".site-nav a").length') === 3, '顶栏三个导航');
+    ok(await js('return !!document.querySelector(".hero .btn.primary")'), 'hero 有主按钮');
+    ok(await js('return /已完成/.test(document.querySelector(".progress-band").textContent)'), '有进度条');
     await shot('e2e-home');
 
     /* ---------- 第 1–3 课：只用耳朵 ---------- */
@@ -522,7 +525,7 @@ async function main() {
       var plain = await render(false);
       var sung = await render(true);
 
-      // 只要鼓。踩镲是噪声，单点测不出能量——所以拿"没有踩镲"的版本对比
+      // 只要鼓。踩镲是噪声，单点测不出能量——所以拿"没有踩镲也没有军鼓"的版本对比
       async function renderDrums(withHats) {
         var offD = new OfflineAudioContext(2, Math.round(sr * dur), sr);
         MA.useContext(offD);
@@ -530,7 +533,7 @@ async function main() {
           chordsA: [null], bars: 1, bpm: 96, bass: false, preSchedule: true,
           drums: {
             hats: withHats ? [1,1,1,1,1,1,1,1] : [0,0,0,0,0,0,0,0],
-            snare: [0,0,1,0,0,0,1,0],
+            snare: withHats ? [0,0,1,0,0,0,1,0] : [0,0,0,0,0,0,0,0],
             kick: [1,0,0,0,1,0,0,0]
           }
         });
@@ -542,7 +545,12 @@ async function main() {
           if (b > peak) peak = b;
           sq += d[j] * d[j];
         }
-        return { peak: peak, rms: Math.sqrt(sq / d.length), kick: goertzel(d, 55), hat: goertzel(d, 8000) };
+        return { peak: peak, rms: Math.sqrt(sq / d.length), kick: goertzel(d, 55), hat: hatBand(d) };
+      }
+
+      // 踩镲是噪声，单点测一个频率抖得厉害，取几个点求和
+      function hatBand(d) {
+        return [6000, 7000, 8000, 9000, 10000].reduce(function (a, f) { return a + goertzel(d, f); }, 0);
       }
 
       return {
@@ -694,7 +702,7 @@ async function main() {
 
     await js('document.querySelector("#etab").click()');
     await sleep(300);
-    ok(await js('return document.querySelectorAll("#emodes button").length') === 3, '三种题型');
+    ok(await js('return document.querySelectorAll("#emodes button").length') === 4, '四种题型');
 
     await js('document.querySelector("#start").click()');
     await sleep(500);
@@ -710,6 +718,30 @@ async function main() {
     await sleep(400);
     ok(await js('return document.querySelectorAll("#eopts .opt").length >= 2'), '能继续出下一题');
     await shot('e2e-ear');
+
+    // 第四种题型：给和弦名，在键盘上按出来
+    await js('document.querySelector(\'#emodes button[data-mode="play"]\').click()');
+    await sleep(250);
+    await js('document.querySelector("#start").click()');
+    await sleep(400);
+    ok(await js('return !!document.querySelector("#ekb")'), '按和弦题会出现键盘');
+    ok(await js('return !!document.querySelector(".chord-target")'), '题面写着要按的和弦');
+
+    // 随便按三个键再检查——对错都行，只要流程通
+    await js(`
+      ["#ekb button[data-midi='60']", "#ekb button[data-midi='64']", "#ekb button[data-midi='67']"]
+        .forEach(function (s) {
+          var b = document.querySelector(s);
+          if (b) b.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+        });
+      return 1;
+    `);
+    await sleep(250);
+    ok(await js('return document.querySelectorAll("#ekb .sel").length >= 1'), '按下的键会高亮');
+    await js('document.querySelector("#checkkeys").click()');
+    await sleep(300);
+    ok(await js('return !!document.querySelector("#fb") && !!document.querySelector("#next")'), '检查后给反馈并能继续');
+    await shot('e2e-ear-play');
 
     /* ---------- 手机 ---------- */
     console.log('\n[13] 手机尺寸');

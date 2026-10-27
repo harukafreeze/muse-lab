@@ -91,6 +91,7 @@
     ctx = c;
     master = null;
     reverbIn = null;
+    noiseBuf = null;      // 噪声缓冲按上下文重建，跨上下文复用会出问题
     return ac();
   };
 

@@ -5,17 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title>muse lab · 从听出「落」到写出自己的 8 小节</title>
-<meta name="description" content="给 Vocaloid 写歌的人用的练习站。一课一件事：先听，再摆，再换一道新题。声音全部由浏览器现场合成。">
+<meta name="description" content="给 Vocaloid 写歌的人用的练习站：十一课，先听再动手，最后导出一个能拖进 Studio One 的 8 小节。声音全部由浏览器现场合成。">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <header class="topbar">
   <a class="brand" href="#/">muse<span>lab</span></a>
-  <span class="tag">第 4 课 · 只有 1 和 5</span>
+  <nav class="site-nav">
+    <a href="#/" data-nav="home">课程</a>
+    <a href="#/practice" data-nav="practice">练习</a>
+    <a href="#/analyze" data-nav="analyze">拆歌</a>
+  </nav>
+  <span class="pill" id="pill">0 / 11</span>
 </header>
 
 <main id="app"></main>
+
+<footer class="site-foot">
+  <div class="foot-row">
+    <span><b>muse lab</b> · 写歌练习站</span>
+    <span>没有账号，没有云端，进度只存在这台机器上</span>
+  </div>
+  <div class="foot-row">
+    <span>Web Audio 现场合成 · 没有音频素材 · 没有构建步骤</span>
+    <a href="https://github.com/harukafreeze/muse-lab" target="_blank" rel="noopener">源码</a>
+  </div>
+</footer>
 
 <noscript><p class="noscript">这个站要靠 JavaScript 发声，请打开它。</p></noscript>
 

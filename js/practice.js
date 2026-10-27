@@ -67,7 +67,7 @@
     y: 8, h: 9, u: 10, j: 11, k: 12, o: 13, l: 14, p: 15
   };
 
-  function buildKeyboard() {
+  function buildKeyboard(id, extraClass) {
     const whites = [];
     const blacks = [];
     for (let o = 0; o < OCTAVES; o++) {
@@ -97,7 +97,7 @@
         '<span class="dg"></span></button>';
     }).join('');
 
-    return '<div class="kb" id="kb">' + whiteHtml + blackHtml + '</div>';
+    return '<div class="kb ' + (extraClass || '') + '" id="' + id + '">' + whiteHtml + blackHtml + '</div>';
   }
 
   function paintLabels() {
@@ -146,7 +146,7 @@
           '<button data-label="name" class="' + (S.label === 'name' ? 'on' : '') + '">音名</button>' +
           '<button data-label="degree" class="' + (S.label === 'degree' ? 'on' : '') + '">级数</button>' +
         '</div>' +
-        '<div class="roll-wrap kb-wrap">' + buildKeyboard() + '</div>' +
+        '<div class="roll-wrap kb-wrap">' + buildKeyboard('kb') + '</div>' +
         '<p class="hint">电脑键盘：<b>A W S E D F T G Y H U J K</b>。' +
           '按住的键越多，响的音越多——可以自己按出和弦。</p>' +
         '<p class="field-label">这个调的七个和弦</p>' +
@@ -222,7 +222,8 @@
   const EAR_MODES = [
     { id: 'degree', name: '级数', desc: '先给你主和弦，再听一个音，说它是第几级' },
     { id: 'interval', name: '音程', desc: '两个音差多远' },
-    { id: 'chord', name: '和弦', desc: '大三、小三，还是减三' }
+    { id: 'chord', name: '和弦', desc: '大三、小三，还是减三' },
+    { id: 'play', name: '按和弦', desc: '给你一个和弦名，在键盘上把它按出来' }
   ];
 
   const POOL = {
@@ -260,8 +261,21 @@
       total: 0,
       q: null,
       picked: null,
+      held: {},
       token: 0
     };
+  }
+
+  /** 记一次答题：统计、连对、最高连对、升级 */
+  function record(ok) {
+    const E = S.ear;
+    E.total += 1;
+    if (!ok) { E.streak = 0; return; }
+    E.correct += 1;
+    E.streak += 1;
+    const best = loadStats();
+    if (E.streak > (best[E.mode] || 0)) { best[E.mode] = E.streak; saveStats(best); }
+    if (E.streak % 5 === 0 && E.level < 3) E.level += 1;
   }
 
   function makeQuestion(mode, level) {
@@ -291,6 +305,18 @@
       };
     }
 
+    if (mode === 'play') {
+      const pool = level === 1 ? [1, 4, 5, 6] : [1, 2, 3, 4, 5, 6, 7];
+      const deg = pick(pool);
+      const chord = MT.diatonicChord(S.keyPc, deg, S.mode);
+      return {
+        kind: 'play',
+        answer: chord.name,
+        pcs: chord.intervals.map(function (i) { return (chord.pc + i) % 12; }),
+        target: chord.name
+      };
+    }
+
     const quality = pick(CHORD_POOL[level] || CHORD_POOL[1]);
     const root = 55 + rand(10);
     const suffix = { maj: '', min: 'm', dim: 'dim', aug: 'aug' }[quality];
@@ -302,6 +328,11 @@
     };
   }
 
+  /** 音高类 → 一组可以由低到高弹出来的音 */
+  function pcsToNotes(pcs) {
+    return pcs.map(function (p) { return 60 + ((p % 12) + 12) % 12; }).sort(function (a, b) { return a - b; });
+  }
+
   function playQuestion(q) {
     if (!q) return;
     if (q.kind === 'degree') {
@@ -310,13 +341,18 @@
     } else if (q.kind === 'interval') {
       MA.blip(q.root, 0, 0.8, 0.24);
       MA.blip(q.root + q.semis, 0.75, 0.9, 0.24);
+    } else if (q.kind === 'play') {
+      // 先听一遍，再去键盘上找——「听到的」和「按出来的」对上，才算真的会
+      MA.chordBlip(pcsToNotes(q.pcs), 0, 1.4, 0.55);
     } else {
       MA.chordBlip(q.notes, 0, 1.4, 0.55);
     }
   }
 
   function playAnswer(q) {
-    if (q.kind === 'interval') {
+    if (q.kind === 'play') {
+      MA.chordBlip(pcsToNotes(q.pcs), 0.15, 1.4, 0.55);
+    } else if (q.kind === 'interval') {
       MA.blip(q.root, 0, 0.8, 0.24);
       MA.blip(q.root + q.semis, 0.75, 0.9, 0.24);
     } else if (q.kind === 'degree') {
@@ -347,6 +383,35 @@
           '<p>' + esc(desc) + '</p>' +
           '<button class="btn primary" id="start">开始</button>' +
         '</div>';
+    } else if (E.mode === 'play') {
+      const have = Object.keys(E.held).filter(function (k) { return E.held[k]; }).map(Number);
+      const need = E.q.pcs;
+      const missing = need.filter(function (p) { return have.indexOf(p) < 0; });
+      const extra = have.filter(function (p) { return need.indexOf(p) < 0; });
+
+      let fb = '<div class="feedback" id="fb" hidden></div>';
+      if (E.picked !== null) {
+        const ok = E.picked === E.q.answer;
+        fb = '<div class="feedback ' + (ok ? 'ok' : 'no') + '" id="fb">' +
+          (ok
+            ? '对，' + esc(E.q.answer) + ' 就是这三个音。'
+            : '还差：' + (missing.length ? missing.map(MT.pcName).join('、') : '没有') +
+              '；多了：' + (extra.length ? extra.map(MT.pcName).join('、') : '没有') + '。') +
+          '</div>';
+      }
+
+      body =
+        '<p class="question">在键盘上按出 <b class="chord-target">' + esc(E.q.target) + '</b> ' +
+          '<span class="caption">点一下选中，再点一下取消</span></p>' +
+        '<div class="roll-wrap kb-wrap">' + buildKeyboard('ekb', 'kb-small') + '</div>' +
+        '<div class="demo">' +
+          '<button class="btn primary" id="checkkeys"' + (E.picked === null ? '' : ' disabled') + '>检查</button>' +
+          '<button class="btn ghost" id="clearkeys"' + (E.picked === null ? '' : ' disabled') + '>清空</button>' +
+        '</div>' +
+        fb +
+        (E.picked !== null
+          ? '<div class="demo"><button class="btn primary" id="next">下一题</button></div>'
+          : '');
     } else {
       const opts = E.q.options.map(function (o) {
         const cls = E.picked === null ? '' :
@@ -428,6 +493,7 @@
       startBtn.onclick = function () {
         E.q = makeQuestion(E.mode, E.level);
         E.picked = null;
+        E.held = {};
         P.renderEar(app);
         playQuestion(E.q);
       };
@@ -442,25 +508,60 @@
         const b = e.target.closest('button[data-opt]');
         if (!b || E.picked !== null) return;
         E.picked = b.dataset.opt;
-        E.total += 1;
-        if (E.picked === E.q.answer) {
-          E.correct += 1;
-          E.streak += 1;
-          const best2 = loadStats();
-          if (E.streak > (best2[E.mode] || 0)) { best2[E.mode] = E.streak; saveStats(best2); }
-          if (E.streak % 5 === 0 && E.level < 3) E.level += 1;
-        } else {
-          E.streak = 0;
-          playAnswer(E.q);
-        }
+        const ok = E.picked === E.q.answer;
+        record(ok);
+        if (!ok) playAnswer(E.q);
         P.renderEar(app);
       };
+    }
+
+    if (E.mode === 'play' && E.q && $('#ekb')) {
+      const mark = function () {
+        $$('#ekb button').forEach(function (b) {
+          b.classList.toggle('sel', !!E.held[Number(b.dataset.midi) % 12]);
+        });
+      };
+      mark();
+
+      $('#ekb').onpointerdown = function (e) {
+        const b = e.target.closest('button[data-midi]');
+        if (!b || E.picked !== null) return;
+        e.preventDefault();
+        const m = Number(b.dataset.midi);
+        const pc = ((m % 12) + 12) % 12;
+        if (E.held[pc]) delete E.held[pc];
+        else E.held[pc] = 1;
+        mark();
+        MA.blip(m, 0, 1.2, 0.24);
+      };
+
+      const chk = $('#checkkeys');
+      if (chk) {
+        chk.onclick = function () {
+          const have = Object.keys(E.held).filter(function (k) { return E.held[k]; }).map(Number);
+          const need = E.q.pcs;
+          const ok = need.length === have.length && need.every(function (p) { return have.indexOf(p) >= 0; });
+          E.picked = ok ? E.q.answer : 'wrong';
+          record(ok);
+          if (!ok) playAnswer(E.q);
+          P.renderEar(app);
+        };
+      }
+
+      const clr = $('#clearkeys');
+      if (clr) {
+        clr.onclick = function () {
+          E.held = {};
+          mark();
+        };
+      }
     }
 
     if ($('#next')) {
       $('#next').onclick = function () {
         E.q = makeQuestion(E.mode, E.level);
         E.picked = null;
+        E.held = {};
         P.renderEar(app);
         playQuestion(E.q);
       };
