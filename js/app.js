@@ -177,9 +177,10 @@
 
     // 继续：第一课还没过的
     const next = ML.LESSONS.filter(function (l) { return !MP.isDone(l.id); })[0] || ML.LESSONS[0];
-    const nextLabel = done === 0
-      ? '从第 1 课开始'
-      : (done === total ? '从头再看一遍' : '继续第 ' + next.no + ' 课');
+    const nextLabel = done === total
+      ? '从头再看一遍'
+      : (next.no === 0 ? '先看这一课'
+        : (done === 0 ? '从第 ' + next.no + ' 课开始' : '继续第 ' + next.no + ' 课'));
 
     function card(l) {
       const isDone = MP.isDone(l.id);
@@ -208,13 +209,14 @@
       );
     }
 
-    const listen = ML.LESSONS.filter(function (l) { return l.no <= 3; });
+    const intro = ML.LESSONS.filter(function (l) { return l.no === 0; });
+    const listen = ML.LESSONS.filter(function (l) { return l.no >= 1 && l.no <= 3; });
     const write = ML.LESSONS.filter(function (l) { return l.no > 3; });
 
     app.innerHTML =
       '<section class="home">' +
         '<div class="hero">' +
-          '<p class="kicker">写歌练习站 · 十一课</p>' +
+          '<p class="kicker">写歌练习站 · ' + total + ' 课</p>' +
           '<h1>从听出「落」开始，<br>写到自己的 8 小节。</h1>' +
           '<p class="lead">' +
             '每一课只干一件事：先听，再动手，然后换一道新题。' +
@@ -228,6 +230,10 @@
           '<button class="hero-listen" id="hero-listen">' +
             '<span class="dot"></span>先听一段：D–A–Bm–G，带鼓' +
           '</button>' +
+          '<div class="arc" aria-hidden="true">' +
+            '<span>听</span><i></i><span>和声</span><i></i><span>旋律</span>' +
+            '<i></i><span>句子</span><i></i><span>节奏</span><i></i><span>8 小节</span>' +
+          '</div>' +
         '</div>' +
 
         '<div class="progress-band">' +
@@ -235,6 +241,7 @@
           '<span>已完成 <b>' + done + '</b> / ' + total + '</span>' +
         '</div>' +
 
+        phase('开始之前', '两分钟，说清楚这里每一节课的节奏。', intro) +
         phase('第一步 · 打开耳朵', '三课，不碰软件、不出现乐理名词。只有一个动作：听，然后选。', listen) +
         phase('第二步 · 写出来', '从两个和弦起手，一路摆到 8 小节的主歌和副歌。', write) +
 

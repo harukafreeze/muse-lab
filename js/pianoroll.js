@@ -12,7 +12,7 @@
   const PR = {};
 
   const COLOR = {
-    bg: '#0e1216',
+    bg: '#141a22',
     stripe: 'rgba(255,255,255,0.022)',
     grid: 'rgba(255,255,255,0.055)',
     bar: 'rgba(255,255,255,0.18)',

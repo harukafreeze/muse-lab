@@ -317,7 +317,7 @@
     const rowH = gridH / 12;
 
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#0e1216';
+    ctx.fillStyle = '#141a22';
     ctx.fillRect(0, 0, w, h);
 
     const frames = res.frames;

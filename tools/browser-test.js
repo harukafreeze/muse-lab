@@ -131,9 +131,9 @@ async function main() {
 
     /* ---------- 目录 ---------- */
     console.log('\n[1] 目录');
-    ok(await js('return document.querySelectorAll(".card:not(.tool)").length') === 11, '十一张课程卡片（1–13 课，去掉 6、9）');
-    ok(await js('return document.querySelectorAll("a.card:not(.tool)").length') === 11, '十一课都是链接');
-    ok(await js('return /^01$/.test(document.querySelector(".card-no").textContent)'), '第一张卡是第 1 课');
+    ok(await js('return document.querySelectorAll(".card:not(.tool)").length') === 12, '十二张课程卡片（0–13）');
+    ok(await js('return document.querySelectorAll("a.card:not(.tool)").length') === 12, '十二课都是链接');
+    ok(await js('return /^00$/.test(document.querySelector(".card-no").textContent)'), '第一张卡是第 0 课');
     ok(await js('return document.querySelectorAll(".tool-card").length') === 3, '首页有三个工具入口');
     ok(await js('return document.querySelectorAll(".site-nav a").length') === 4, '顶栏四个导航');
     ok(await js('return !!document.querySelector(".hero .btn.primary")'), 'hero 有主按钮');
